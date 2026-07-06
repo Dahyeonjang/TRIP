@@ -152,6 +152,12 @@
         <label>날짜</label>
         <input type="date" id="fDate" required>
       </div>
+      <div class="field" id="catField">
+        <label>항목</label>
+        <div class="members" id="fCats"></div>
+        <input type="text" id="fCatCustom" placeholder="항목 이름을 입력하세요 (예: 마사지)"
+          style="display: none; margin-top: 8px;">
+      </div>
       <div class="field">
         <label>내용</label>
         <input type="text" id="fDesc" placeholder="예: 저녁 갈비" required>
@@ -323,7 +329,8 @@ function render() {
       info.querySelector(".amount").textContent = (isIncome ? "+" : "") + fmt(e.amount);
       if (isIncome) info.querySelector(".amount").style.color = "var(--accent)";
       info.querySelector(".meta").textContent =
-        (isIncome ? "찬조 · " : "") + (e.usd ? usdFmt(e.usd) + " · " : "") +
+        (isIncome ? "찬조 · " : "") + (e.category ? e.category + " · " : "") +
+        (e.usd ? usdFmt(e.usd) + " · " : "") +
         dateStr + " · " + e.participants.join(", ");
 
       const del = document.createElement("button");
@@ -382,6 +389,26 @@ MEMBERS.forEach(m => {
   membersBox.appendChild(label);
 });
 
+// 항목 선택 (프리셋 + 직접 입력)
+const CATEGORIES = ["식비", "교통", "관광", "선물", "간식", "기타"];
+const catsBox = document.getElementById("fCats");
+[...CATEGORIES, "✏️ 직접 입력"].forEach((c, i) => {
+  const label = document.createElement("label");
+  const rb = document.createElement("input");
+  rb.type = "radio"; rb.name = "cat";
+  rb.value = c === "✏️ 직접 입력" ? "__custom" : c;
+  rb.checked = i === 0;
+  label.appendChild(rb);
+  label.appendChild(document.createTextNode(c));
+  catsBox.appendChild(label);
+});
+catsBox.onchange = () => {
+  const custom = document.querySelector('input[name="cat"]:checked').value === "__custom";
+  const input = document.getElementById("fCatCustom");
+  input.style.display = custom ? "block" : "none";
+  if (custom) input.focus();
+};
+
 // 통화 선택 (원화/달러)
 function isUsdMode() {
   return document.querySelector('input[name="ccy"]:checked').value === "usd";
@@ -414,6 +441,7 @@ document.querySelectorAll('input[name="etype"]').forEach(r => {
       ? "혜택을 나눌 사람 (보통 전원 체크)"
       : "참여자 (헤더님 가신 뒤엔 헤더 체크 해제)";
     document.getElementById("submitBtn").textContent = isIncome ? "찬조 기록하기" : "지출 기록하기";
+    document.getElementById("catField").style.display = isIncome ? "none" : "block";
   };
 });
 
@@ -437,6 +465,14 @@ document.getElementById("expenseForm").onsubmit = async e => {
   const participants = [...membersBox.querySelectorAll("input:checked")].map(c => c.value);
   if (participants.length === 0) { alert("참여자를 한 명 이상 선택해 주세요"); return; }
 
+  const etype = document.querySelector('input[name="etype"]:checked').value;
+  let category = null;
+  if (etype !== "income") {
+    const catVal = document.querySelector('input[name="cat"]:checked').value;
+    category = catVal === "__custom" ? document.getElementById("fCatCustom").value.trim() : catVal;
+    if (!category) { alert("항목 이름을 입력해 주세요"); return; }
+  }
+
   const raw = Number(document.getElementById("fAmount").value);
   let amount = raw, usd = null, rate = null;
   if (isUsdMode()) {
@@ -448,7 +484,8 @@ document.getElementById("expenseForm").onsubmit = async e => {
 
   const item = {
     id: Date.now().toString(36),
-    type: document.querySelector('input[name="etype"]:checked').value,
+    type: etype,
+    category,
     date: document.getElementById("fDate").value,
     desc: document.getElementById("fDesc").value.trim(),
     amount, usd, rate,
