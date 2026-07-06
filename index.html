@@ -37,6 +37,8 @@
   .card .label { font-size: 11px; color: var(--sub); margin-bottom: 5px; }
   .card .value { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
   .card.balance .value { color: var(--accent); font-size: 16px; }
+  .card.balance.negative .value { color: var(--danger); }
+  .card .sub { font-size: 10px; color: var(--danger); margin-top: 3px; }
 
   section {
     background: var(--card); border: 1px solid var(--line);
@@ -149,7 +151,7 @@
   <div class="cards">
     <div class="card"><div class="label">모인 돈 (회비+찬조)</div><div class="value" id="fundTotal"></div></div>
     <div class="card"><div class="label">지출 합계</div><div class="value" id="spentTotal"></div></div>
-    <div class="card balance"><div class="label">남은 돈</div><div class="value" id="balance"></div></div>
+    <div class="card balance" id="balanceCard"><div class="label">남은 돈</div><div class="value" id="balance"></div><div class="sub" id="balanceNote"></div></div>
   </div>
 
   <section>
@@ -324,7 +326,10 @@ function render() {
     .reduce((a, e) => a + e.amount, 0);
   document.getElementById("fundTotal").textContent = fmt(FUND + donated);
   document.getElementById("spentTotal").textContent = fmt(spent);
-  document.getElementById("balance").textContent = fmt(FUND + donated - fundSpent);
+  const balance = FUND + donated - fundSpent;
+  document.getElementById("balance").textContent = fmt(balance);
+  document.getElementById("balanceCard").classList.toggle("negative", balance < 0);
+  document.getElementById("balanceNote").textContent = balance < 0 ? "⚠ 총무가 대신 내는 중" : "";
 
   // 지출 목록 (최신순)
   const list = document.getElementById("expenseList");
@@ -466,7 +471,7 @@ const payersBox = document.getElementById("fPayers");
   const rb = document.createElement("input");
   rb.type = "radio"; rb.name = "payer"; rb.value = p; rb.checked = i === 0;
   label.appendChild(rb);
-  label.appendChild(document.createTextNode(p === "회비" ? "💰 회비" : p));
+  label.appendChild(document.createTextNode(p === "회비" ? "💰 회비(다현)" : p));
   payersBox.appendChild(label);
 });
 function resetPayer() {
