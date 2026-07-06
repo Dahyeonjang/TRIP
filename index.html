@@ -150,8 +150,18 @@
         <input type="text" id="fDesc" placeholder="예: 저녁 갈비" required>
       </div>
       <div class="field">
-        <label>금액 (원)</label>
-        <input type="number" id="fAmount" placeholder="예: 84000" min="1" required>
+        <label>금액</label>
+        <div class="members" style="margin-bottom: 6px;">
+          <label><input type="radio" name="ccy" value="krw" checked>₩ 원화</label>
+          <label><input type="radio" name="ccy" value="usd">$ 달러</label>
+        </div>
+        <input type="number" id="fAmount" placeholder="예: 84000" min="0.01" step="any" required>
+        <div id="rateRow" style="display: none; margin-top: 6px; font-size: 13px; color: var(--sub);">
+          환율 1$ =
+          <input type="number" id="fRate" step="any" min="1"
+            style="width: 80px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px;">
+          원 <span id="rateHint"></span>
+        </div>
       </div>
       <div class="field">
         <label id="pLabel">참여자 (헤더님 가신 뒤엔 헤더 체크 해제)</label>
@@ -198,6 +208,9 @@ const EXTRA_PAID = { "퍼핀": 600000 }; // 초과 납입분 (그대로 반환)
 const FUND = Object.values(FEES).reduce((a, b) => a + b, 0);
 
 const fmt = n => Math.round(n).toLocaleString("ko-KR") + "원";
+const usdFmt = n => "$" + (Number.isInteger(n) ? n.toLocaleString("en-US") : n.toFixed(2));
+const DEFAULT_RATE = 1380;
+const savedRate = () => Number(localStorage.getItem("trip-usd-rate")) || DEFAULT_RATE;
 
 // ---------- IndexedDB ----------
 let db;
@@ -303,7 +316,8 @@ function render() {
       info.querySelector(".amount").textContent = (isIncome ? "+" : "") + fmt(e.amount);
       if (isIncome) info.querySelector(".amount").style.color = "var(--accent)";
       info.querySelector(".meta").textContent =
-        (isIncome ? "찬조 · " : "") + dateStr + " · " + e.participants.join(", ");
+        (isIncome ? "찬조 · " : "") + (e.usd ? usdFmt(e.usd) + " · " : "") +
+        dateStr + " · " + e.participants.join(", ");
 
       const del = document.createElement("button");
       del.className = "del";
@@ -361,6 +375,30 @@ MEMBERS.forEach(m => {
   membersBox.appendChild(label);
 });
 
+// 통화 선택 (원화/달러)
+function isUsdMode() {
+  return document.querySelector('input[name="ccy"]:checked').value === "usd";
+}
+function updateRateHint() {
+  const amt = Number(document.getElementById("fAmount").value);
+  const rate = Number(document.getElementById("fRate").value) || savedRate();
+  document.getElementById("rateHint").textContent =
+    amt > 0 ? "→ 약 " + fmt(amt * rate) : "";
+}
+document.querySelectorAll('input[name="ccy"]').forEach(r => {
+  r.onchange = () => {
+    const usd = isUsdMode();
+    document.getElementById("rateRow").style.display = usd ? "block" : "none";
+    document.getElementById("fAmount").placeholder = usd ? "예: 25" : "예: 84000";
+    if (usd && !document.getElementById("fRate").value) {
+      document.getElementById("fRate").value = savedRate();
+    }
+    updateRateHint();
+  };
+});
+document.getElementById("fAmount").oninput = () => { if (isUsdMode()) updateRateHint(); };
+document.getElementById("fRate").oninput = updateRateHint;
+
 document.querySelectorAll('input[name="etype"]').forEach(r => {
   r.onchange = () => {
     const isIncome = r.value === "income" && r.checked;
@@ -392,12 +430,21 @@ document.getElementById("expenseForm").onsubmit = async e => {
   const participants = [...membersBox.querySelectorAll("input:checked")].map(c => c.value);
   if (participants.length === 0) { alert("참여자를 한 명 이상 선택해 주세요"); return; }
 
+  const raw = Number(document.getElementById("fAmount").value);
+  let amount = raw, usd = null, rate = null;
+  if (isUsdMode()) {
+    rate = Number(document.getElementById("fRate").value) || savedRate();
+    usd = raw;
+    amount = Math.round(raw * rate);
+    localStorage.setItem("trip-usd-rate", rate);
+  }
+
   const item = {
     id: Date.now().toString(36),
     type: document.querySelector('input[name="etype"]:checked').value,
     date: document.getElementById("fDate").value,
     desc: document.getElementById("fDesc").value.trim(),
-    amount: Number(document.getElementById("fAmount").value),
+    amount, usd, rate,
     participants,
     photo: pendingPhoto
   };
@@ -407,6 +454,7 @@ document.getElementById("expenseForm").onsubmit = async e => {
   // 폼 리셋 (날짜·참여자는 유지)
   document.getElementById("fDesc").value = "";
   document.getElementById("fAmount").value = "";
+  document.getElementById("rateHint").textContent = "";
   pendingPhoto = null;
   document.getElementById("fPhoto").value = "";
   document.getElementById("photoPreview").style.display = "none";
