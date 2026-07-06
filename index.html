@@ -190,6 +190,10 @@
           원 <span id="rateHint"></span>
         </div>
       </div>
+      <div class="field" id="payerField">
+        <label>누가 결제했나요?</label>
+        <div class="members" id="fPayers"></div>
+      </div>
       <div class="field">
         <label id="pLabel">참여자 (헤더님 가신 뒤엔 헤더 체크 해제)</label>
         <div class="members" id="fMembers"></div>
@@ -220,12 +224,13 @@
   <section>
     <h2>💰 최종 정산 (실시간)</h2>
     <table class="settle">
-      <thead><tr><th>이름</th><th>낸 회비</th><th>부담액</th><th>돌려받을 돈</th></tr></thead>
+      <thead><tr><th>이름</th><th>낸 회비</th><th>따로 결제</th><th>부담액</th><th>돌려받을 돈</th></tr></thead>
       <tbody id="settleBody"></tbody>
     </table>
     <p class="note">
       · 부담액 = 각 지출을 참여자 수로 나눈 몫의 합<br>
       · 찬조(스윗워러님 등)는 모인 돈에 더해지고, 혜택 나눈 사람들의 부담액을 줄여줘요<br>
+      · 따로 결제 = 회비가 아니라 개인 돈으로 낸 금액 — 돌려받을 돈에 자동으로 더해져요<br>
       · <strong>퍼핀님은 초과 납입 600,000원</strong>이 돌려받을 돈에 이미 포함되어 있어요<br>
       · 지출을 추가할 때마다 자동으로 다시 계산됩니다
     </p>
@@ -313,9 +318,13 @@ let editingId = null;
 function render() {
   const spent = expenses.filter(e => e.type !== "income").reduce((a, e) => a + e.amount, 0);
   const donated = expenses.filter(e => e.type === "income").reduce((a, e) => a + e.amount, 0);
+  // 회비에서 나간 지출만 잔액에서 차감 (개인 결제는 정산 때 돌려줌)
+  const fundSpent = expenses
+    .filter(e => e.type !== "income" && (!e.payer || e.payer === "회비"))
+    .reduce((a, e) => a + e.amount, 0);
   document.getElementById("fundTotal").textContent = fmt(FUND + donated);
   document.getElementById("spentTotal").textContent = fmt(spent);
-  document.getElementById("balance").textContent = fmt(FUND + donated - spent);
+  document.getElementById("balance").textContent = fmt(FUND + donated - fundSpent);
 
   // 지출 목록 (최신순)
   const list = document.getElementById("expenseList");
@@ -351,6 +360,7 @@ function render() {
       if (isIncome) info.querySelector(".amount").style.color = "var(--accent)";
       info.querySelector(".meta").textContent =
         (isIncome ? "찬조 · " : "") + (e.category ? e.category + " · " : "") +
+        (e.payer && e.payer !== "회비" ? e.payer + " 결제 · " : "") +
         (e.usd ? usdFmt(e.usd) + " · " : "") +
         dateStr + " · " + e.participants.join(", ");
 
@@ -411,14 +421,20 @@ function render() {
     const per = e.amount / e.participants.length * sign;
     e.participants.forEach(p => { if (p in shares) shares[p] += per; });
   });
+  // 개인 돈으로 결제한 금액 (정산 때 돌려줌)
+  const personalPaid = Object.fromEntries(MEMBERS.map(m => [m, 0]));
+  expenses.forEach(e => {
+    if (e.type !== "income" && e.payer && e.payer in personalPaid) personalPaid[e.payer] += e.amount;
+  });
   const body = document.getElementById("settleBody");
   body.innerHTML = "";
   MEMBERS.forEach(m => {
-    const refund = FEES[m] - shares[m] + (EXTRA_PAID[m] || 0);
+    const refund = FEES[m] + (EXTRA_PAID[m] || 0) + personalPaid[m] - shares[m];
     const tr = document.createElement("tr");
     const cls = refund >= 0 ? "plus" : "minus";
     const paid = FEES[m] + (EXTRA_PAID[m] || 0);
-    tr.innerHTML = "<td>" + m + "</td><td>" + fmt(paid) + "</td><td>" + fmt(shares[m]) +
+    tr.innerHTML = "<td>" + m + "</td><td>" + fmt(paid) + "</td><td>" +
+      (personalPaid[m] ? fmt(personalPaid[m]) : "-") + "</td><td>" + fmt(shares[m]) +
       '</td><td class="' + cls + '">' + (refund >= 0 ? fmt(refund) : "-" + fmt(-refund)) + "</td>";
     body.appendChild(tr);
   });
@@ -442,6 +458,20 @@ MEMBERS.forEach(m => {
   label.appendChild(document.createTextNode(m));
   membersBox.appendChild(label);
 });
+
+// 결제자 선택 (회비 또는 멤버 개인)
+const payersBox = document.getElementById("fPayers");
+["회비", ...MEMBERS].forEach((p, i) => {
+  const label = document.createElement("label");
+  const rb = document.createElement("input");
+  rb.type = "radio"; rb.name = "payer"; rb.value = p; rb.checked = i === 0;
+  label.appendChild(rb);
+  label.appendChild(document.createTextNode(p === "회비" ? "💰 회비" : p));
+  payersBox.appendChild(label);
+});
+function resetPayer() {
+  document.querySelector('input[name="payer"][value="회비"]').checked = true;
+}
 
 // 항목 선택 (프리셋 + 직접 입력)
 const CATEGORIES = ["식비", "교통", "관광", "선물", "간식", "숙소", "기타"];
@@ -497,6 +527,7 @@ document.querySelectorAll('input[name="etype"]').forEach(r => {
     document.getElementById("submitBtn").textContent =
       editingId ? "✏️ 수정 저장" : (isIncome ? "찬조 기록하기" : "지출 기록하기");
     document.getElementById("catField").style.display = isIncome ? "none" : "block";
+    document.getElementById("payerField").style.display = isIncome ? "none" : "block";
   };
 });
 
@@ -531,6 +562,9 @@ function startEdit(e) {
     const custom = document.getElementById("fCatCustom");
     custom.style.display = catVal === "__custom" ? "block" : "none";
     custom.value = catVal === "__custom" ? e.category : "";
+
+    const payerRadio = document.querySelector('input[name="payer"][value="' + (e.payer || "회비") + '"]');
+    (payerRadio || document.querySelector('input[name="payer"][value="회비"]')).checked = true;
   }
 
   const ccyRadio = document.querySelector('input[name="ccy"][value="' + (e.usd ? "usd" : "krw") + '"]');
@@ -573,6 +607,7 @@ document.getElementById("cancelEdit").onclick = () => {
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("photoBtn").textContent = "📷 사진 붙이기";
   membersBox.querySelectorAll("input").forEach(cb => { cb.checked = true; });
+  resetPayer();
   cancelEditMode();
 };
 
@@ -602,6 +637,7 @@ document.getElementById("expenseForm").onsubmit = async e => {
     id: editingId || Date.now().toString(36),
     type: etype,
     category,
+    payer: etype === "income" ? null : document.querySelector('input[name="payer"]:checked').value,
     date: document.getElementById("fDate").value,
     desc: document.getElementById("fDesc").value.trim(),
     amount, usd, rate,
@@ -623,6 +659,7 @@ document.getElementById("expenseForm").onsubmit = async e => {
   document.getElementById("fPhoto").value = "";
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("photoBtn").textContent = "📷 사진 붙이기";
+  resetPayer();
   cancelEditMode();
   render();
 };
