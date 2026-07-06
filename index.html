@@ -116,6 +116,13 @@
   }
   .empty-msg { text-align: center; color: var(--sub); font-size: 13px; padding: 16px 0; }
 
+  .catrow { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+  .catrow .cname { width: 60px; font-weight: 600; flex-shrink: 0; }
+  .catrow .cbar { flex: 1; height: 8px; background: #f0ece4; border-radius: 4px; overflow: hidden; }
+  .catrow .cbar > div { height: 100%; background: var(--accent); border-radius: 4px; }
+  .catrow .camt { min-width: 120px; text-align: right; white-space: nowrap; }
+  .catrow .camt .pct { color: var(--sub); font-size: 11px; margin-left: 4px; }
+
   table.settle { width: 100%; border-collapse: collapse; font-size: 13px; }
   table.settle th, table.settle td { padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--line); }
   table.settle th:first-child, table.settle td:first-child { text-align: left; }
@@ -203,6 +210,11 @@
   <section>
     <h2>🧾 지출 내역</h2>
     <div id="expenseList"></div>
+  </section>
+
+  <section>
+    <h2>📊 항목별 합계</h2>
+    <div id="catSummary"></div>
   </section>
 
   <section>
@@ -363,6 +375,32 @@ function render() {
       row.appendChild(thumb);
       row.appendChild(info);
       list.appendChild(row);
+    });
+  }
+
+  // 항목별 합계
+  const catTotals = {};
+  expenses.filter(e => e.type !== "income").forEach(e => {
+    const c = e.category || "미분류";
+    catTotals[c] = (catTotals[c] || 0) + e.amount;
+  });
+  const catBox = document.getElementById("catSummary");
+  catBox.innerHTML = "";
+  const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+  if (catEntries.length === 0) {
+    catBox.innerHTML = '<p class="empty-msg">아직 지출이 없어요</p>';
+  } else {
+    const maxAmt = catEntries[0][1];
+    catEntries.forEach(([c, amt]) => {
+      const row = document.createElement("div");
+      row.className = "catrow";
+      row.innerHTML = '<span class="cname"></span><div class="cbar"><div></div></div>' +
+        '<span class="camt"><span class="val"></span><span class="pct"></span></span>';
+      row.querySelector(".cname").textContent = c;
+      row.querySelector(".cbar > div").style.width = Math.max(4, amt / maxAmt * 100) + "%";
+      row.querySelector(".val").textContent = fmt(amt);
+      row.querySelector(".pct").textContent = "(" + Math.round(amt / spent * 100) + "%)";
+      catBox.appendChild(row);
     });
   }
 
