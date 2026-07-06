@@ -102,11 +102,18 @@
   .expense .desc { font-size: 14px; font-weight: 600; }
   .expense .amount { font-size: 15px; font-weight: 700; white-space: nowrap; }
   .expense .meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
-  .expense .del {
+  .expense .del, .expense .edit {
     background: none; border: none; color: var(--sub); font-size: 12px;
     cursor: pointer; padding: 2px 4px; margin-top: 4px;
   }
   .expense .del:hover { color: var(--danger); }
+  .expense .edit { margin-right: 8px; }
+  .expense .edit:hover { color: var(--accent); }
+  .cancel-btn {
+    width: 100%; padding: 12px; margin-top: 8px;
+    background: #fff; color: var(--sub); border: 1px solid var(--line);
+    border-radius: 10px; font-size: 14px; cursor: pointer;
+  }
   .empty-msg { text-align: center; color: var(--sub); font-size: 13px; padding: 16px 0; }
 
   table.settle { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -189,6 +196,7 @@
         </div>
       </div>
       <button type="submit" class="submit" id="submitBtn">지출 기록하기</button>
+      <button type="button" class="cancel-btn" id="cancelEdit" style="display: none;">수정 취소</button>
     </form>
   </section>
 
@@ -287,6 +295,7 @@ function compressImage(file) {
 // ---------- 상태 ----------
 let expenses = [];
 let pendingPhoto = null;
+let editingId = null;
 
 // ---------- 렌더링 ----------
 function render() {
@@ -333,6 +342,12 @@ function render() {
         (e.usd ? usdFmt(e.usd) + " · " : "") +
         dateStr + " · " + e.participants.join(", ");
 
+      const edit = document.createElement("button");
+      edit.className = "edit";
+      edit.textContent = "수정";
+      edit.onclick = () => startEdit(e);
+      info.appendChild(edit);
+
       const del = document.createElement("button");
       del.className = "del";
       del.textContent = "삭제";
@@ -340,6 +355,7 @@ function render() {
         if (!confirm('"' + e.desc + '" 지출을 삭제할까요?')) return;
         await dbDelete(e.id);
         expenses = expenses.filter(x => x.id !== e.id);
+        if (editingId === e.id) cancelEditMode();
         render();
       };
       info.appendChild(del);
@@ -390,7 +406,7 @@ MEMBERS.forEach(m => {
 });
 
 // 항목 선택 (프리셋 + 직접 입력)
-const CATEGORIES = ["식비", "교통", "관광", "선물", "간식", "기타"];
+const CATEGORIES = ["식비", "교통", "관광", "선물", "간식", "숙소", "기타"];
 const catsBox = document.getElementById("fCats");
 [...CATEGORIES, "✏️ 직접 입력"].forEach((c, i) => {
   const label = document.createElement("label");
@@ -440,7 +456,8 @@ document.querySelectorAll('input[name="etype"]').forEach(r => {
     document.getElementById("pLabel").textContent = isIncome
       ? "혜택을 나눌 사람 (보통 전원 체크)"
       : "참여자 (헤더님 가신 뒤엔 헤더 체크 해제)";
-    document.getElementById("submitBtn").textContent = isIncome ? "찬조 기록하기" : "지출 기록하기";
+    document.getElementById("submitBtn").textContent =
+      editingId ? "✏️ 수정 저장" : (isIncome ? "찬조 기록하기" : "지출 기록하기");
     document.getElementById("catField").style.display = isIncome ? "none" : "block";
   };
 });
@@ -458,6 +475,67 @@ document.getElementById("fPhoto").onchange = async e => {
   } catch (err) {
     alert(err.message);
   }
+};
+
+// 수정 모드
+function startEdit(e) {
+  editingId = e.id;
+  document.querySelector('input[name="etype"][value="' + (e.type === "income" ? "income" : "expense") + '"]').click();
+  document.getElementById("fDate").value = e.date;
+  document.getElementById("fDesc").value = e.desc;
+
+  if (e.type !== "income") {
+    let catVal;
+    if (!e.category) catVal = "기타";
+    else if (CATEGORIES.includes(e.category)) catVal = e.category;
+    else catVal = "__custom";
+    document.querySelector('input[name="cat"][value="' + catVal + '"]').checked = true;
+    const custom = document.getElementById("fCatCustom");
+    custom.style.display = catVal === "__custom" ? "block" : "none";
+    custom.value = catVal === "__custom" ? e.category : "";
+  }
+
+  const ccyRadio = document.querySelector('input[name="ccy"][value="' + (e.usd ? "usd" : "krw") + '"]');
+  ccyRadio.checked = true;
+  ccyRadio.onchange();
+  if (e.usd) {
+    document.getElementById("fAmount").value = e.usd;
+    document.getElementById("fRate").value = e.rate || savedRate();
+    updateRateHint();
+  } else {
+    document.getElementById("fAmount").value = e.amount;
+  }
+
+  membersBox.querySelectorAll("input").forEach(cb => { cb.checked = e.participants.includes(cb.value); });
+
+  pendingPhoto = e.photo || null;
+  const pv = document.getElementById("photoPreview");
+  pv.style.display = pendingPhoto ? "block" : "none";
+  if (pendingPhoto) pv.src = pendingPhoto;
+  document.getElementById("photoBtn").textContent = pendingPhoto ? "📷 사진 바꾸기" : "📷 사진 붙이기";
+
+  document.getElementById("submitBtn").textContent = "✏️ 수정 저장";
+  document.getElementById("cancelEdit").style.display = "block";
+  document.getElementById("expenseForm").scrollIntoView({ behavior: "smooth" });
+}
+
+function cancelEditMode() {
+  editingId = null;
+  document.getElementById("cancelEdit").style.display = "none";
+  const isIncome = document.querySelector('input[name="etype"]:checked').value === "income";
+  document.getElementById("submitBtn").textContent = isIncome ? "찬조 기록하기" : "지출 기록하기";
+}
+
+document.getElementById("cancelEdit").onclick = () => {
+  document.getElementById("fDesc").value = "";
+  document.getElementById("fAmount").value = "";
+  document.getElementById("rateHint").textContent = "";
+  pendingPhoto = null;
+  document.getElementById("fPhoto").value = "";
+  document.getElementById("photoPreview").style.display = "none";
+  document.getElementById("photoBtn").textContent = "📷 사진 붙이기";
+  membersBox.querySelectorAll("input").forEach(cb => { cb.checked = true; });
+  cancelEditMode();
 };
 
 document.getElementById("expenseForm").onsubmit = async e => {
@@ -483,7 +561,7 @@ document.getElementById("expenseForm").onsubmit = async e => {
   }
 
   const item = {
-    id: Date.now().toString(36),
+    id: editingId || Date.now().toString(36),
     type: etype,
     category,
     date: document.getElementById("fDate").value,
@@ -493,7 +571,11 @@ document.getElementById("expenseForm").onsubmit = async e => {
     photo: pendingPhoto
   };
   await dbPut(item);
-  expenses.push(item);
+  if (editingId) {
+    expenses = expenses.map(x => x.id === editingId ? item : x);
+  } else {
+    expenses.push(item);
+  }
 
   // 폼 리셋 (날짜·참여자는 유지)
   document.getElementById("fDesc").value = "";
@@ -503,6 +585,7 @@ document.getElementById("expenseForm").onsubmit = async e => {
   document.getElementById("fPhoto").value = "";
   document.getElementById("photoPreview").style.display = "none";
   document.getElementById("photoBtn").textContent = "📷 사진 붙이기";
+  cancelEditMode();
   render();
 };
 
