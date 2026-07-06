@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>캄보디아 여행 정산</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --card: #ffffff;
+    --ink: #2f2a25;
+    --sub: #8a8177;
+    --accent: #4a7c59;
+    --accent-soft: #e8f0ea;
+    --danger: #c0564a;
+    --line: #e7e2d9;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 20px 14px 60px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 18px; }
+  header h1 { font-size: 22px; letter-spacing: -0.5px; }
+  header p { color: var(--sub); font-size: 13px; margin-top: 4px; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 12px 10px; text-align: center;
+  }
+  .card .label { font-size: 11px; color: var(--sub); margin-bottom: 5px; }
+  .card .value { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+  .card.balance .value { color: var(--accent); font-size: 16px; }
+
+  section {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 14px;
+  }
+  section h2 { font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; color: var(--sub); margin-bottom: 4px; }
+  .field input[type="date"], .field input[type="text"], .field input[type="number"] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 10px; font-size: 15px; background: #fdfcfa; color: var(--ink);
+  }
+  .field input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+  .members { display: flex; gap: 6px; flex-wrap: wrap; }
+  .members label {
+    display: flex; align-items: center; gap: 5px;
+    border: 1px solid var(--line); border-radius: 20px;
+    padding: 7px 12px; font-size: 13px; cursor: pointer; user-select: none;
+    background: #fdfcfa;
+  }
+  .members label:has(input:checked) {
+    background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600;
+  }
+  .members input { accent-color: var(--accent); }
+
+  .photo-field { display: flex; align-items: center; gap: 10px; }
+  .photo-btn {
+    border: 1px dashed var(--line); background: #fdfcfa; border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; color: var(--sub); cursor: pointer;
+  }
+  .photo-preview { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; display: none; border: 1px solid var(--line); }
+
+  .submit {
+    width: 100%; padding: 13px; margin-top: 4px;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .submit:active { transform: scale(0.99); }
+
+  .expense {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+  }
+  .expense:last-child { border-bottom: none; padding-bottom: 0; }
+  .expense .thumb {
+    width: 52px; height: 52px; border-radius: 10px; object-fit: cover;
+    border: 1px solid var(--line); cursor: pointer; flex-shrink: 0;
+  }
+  .expense .thumb.empty {
+    display: flex; align-items: center; justify-content: center;
+    background: #f3f0ea; color: var(--sub); font-size: 18px; cursor: default;
+  }
+  .expense .info { flex: 1; min-width: 0; }
+  .expense .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .expense .desc { font-size: 14px; font-weight: 600; }
+  .expense .amount { font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .expense .meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
+  .expense .del {
+    background: none; border: none; color: var(--sub); font-size: 12px;
+    cursor: pointer; padding: 2px 4px; margin-top: 4px;
+  }
+  .expense .del:hover { color: var(--danger); }
+  .empty-msg { text-align: center; color: var(--sub); font-size: 13px; padding: 16px 0; }
+
+  table.settle { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.settle th, table.settle td { padding: 8px 6px; text-align: right; border-bottom: 1px solid var(--line); }
+  table.settle th:first-child, table.settle td:first-child { text-align: left; }
+  table.settle th { color: var(--sub); font-weight: 500; font-size: 12px; }
+  table.settle td.plus { color: var(--accent); font-weight: 700; }
+  table.settle td.minus { color: var(--danger); font-weight: 700; }
+  .note { font-size: 12px; color: var(--sub); margin-top: 10px; line-height: 1.6; }
+  .note strong { color: var(--ink); }
+
+  #lightbox {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 100; align-items: center; justify-content: center; cursor: zoom-out;
+  }
+  #lightbox img { max-width: 94vw; max-height: 92vh; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🇰🇭 캄보디아 여행 정산</h1>
+    <p>7/9 ~ 7/15 · 퍼핀 · 솔담 · 단무지 · 헤더(~7/13)</p>
+  </header>
+
+  <div class="cards">
+    <div class="card"><div class="label">모인 돈 (회비+찬조)</div><div class="value" id="fundTotal"></div></div>
+    <div class="card"><div class="label">지출 합계</div><div class="value" id="spentTotal"></div></div>
+    <div class="card balance"><div class="label">남은 돈</div><div class="value" id="balance"></div></div>
+  </div>
+
+  <section>
+    <h2>✏️ 기록 추가</h2>
+    <form id="expenseForm">
+      <div class="field">
+        <label>구분</label>
+        <div class="members">
+          <label><input type="radio" name="etype" value="expense" checked>💸 지출</label>
+          <label><input type="radio" name="etype" value="income">💝 찬조 (돈 들어옴)</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>날짜</label>
+        <input type="date" id="fDate" required>
+      </div>
+      <div class="field">
+        <label>내용</label>
+        <input type="text" id="fDesc" placeholder="예: 저녁 갈비" required>
+      </div>
+      <div class="field">
+        <label>금액 (원)</label>
+        <input type="number" id="fAmount" placeholder="예: 84000" min="1" required>
+      </div>
+      <div class="field">
+        <label id="pLabel">참여자 (헤더님 가신 뒤엔 헤더 체크 해제)</label>
+        <div class="members" id="fMembers"></div>
+      </div>
+      <div class="field">
+        <label>영수증 사진 (선택)</label>
+        <div class="photo-field">
+          <button type="button" class="photo-btn" id="photoBtn">📷 사진 붙이기</button>
+          <input type="file" id="fPhoto" accept="image/*" hidden>
+          <img class="photo-preview" id="photoPreview" alt="">
+        </div>
+      </div>
+      <button type="submit" class="submit" id="submitBtn">지출 기록하기</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>🧾 지출 내역</h2>
+    <div id="expenseList"></div>
+  </section>
+
+  <section>
+    <h2>💰 최종 정산 (실시간)</h2>
+    <table class="settle">
+      <thead><tr><th>이름</th><th>낸 회비</th><th>부담액</th><th>돌려받을 돈</th></tr></thead>
+      <tbody id="settleBody"></tbody>
+    </table>
+    <p class="note">
+      · 부담액 = 각 지출을 참여자 수로 나눈 몫의 합<br>
+      · 찬조(스윗워러님 등)는 모인 돈에 더해지고, 혜택 나눈 사람들의 부담액을 줄여줘요<br>
+      · <strong>퍼핀님은 초과 납입 600,000원</strong>이 돌려받을 돈에 이미 포함되어 있어요<br>
+      · 지출을 추가할 때마다 자동으로 다시 계산됩니다
+    </p>
+  </section>
+</div>
+
+<div id="lightbox"><img id="lightboxImg" alt=""></div>
+
+<script>
+const MEMBERS = ["퍼핀", "솔담", "단무지", "헤더"];
+const FEES = { "퍼핀": 400000, "솔담": 400000, "단무지": 400000, "헤더": 300000 };
+const EXTRA_PAID = { "퍼핀": 600000 }; // 초과 납입분 (그대로 반환)
+const FUND = Object.values(FEES).reduce((a, b) => a + b, 0);
+
+const fmt = n => Math.round(n).toLocaleString("ko-KR") + "원";
+
+// ---------- IndexedDB ----------
+let db;
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("trip-2607", 1);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore("expenses", { keyPath: "id" });
+    };
+    req.onsuccess = () => { db = req.result; resolve(); };
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbAll() {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("expenses").objectStore("expenses").getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbPut(item) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("expenses", "readwrite");
+    tx.objectStore("expenses").put(item);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+function dbDelete(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("expenses", "readwrite");
+    tx.objectStore("expenses").delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ---------- 사진 압축 ----------
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1280;
+      let { width: w, height: h } = img;
+      if (Math.max(w, h) > MAX) {
+        const r = MAX / Math.max(w, h);
+        w = Math.round(w * r); h = Math.round(h * r);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("이미지를 읽지 못했어요")); };
+    img.src = url;
+  });
+}
+
+// ---------- 상태 ----------
+let expenses = [];
+let pendingPhoto = null;
+
+// ---------- 렌더링 ----------
+function render() {
+  const spent = expenses.filter(e => e.type !== "income").reduce((a, e) => a + e.amount, 0);
+  const donated = expenses.filter(e => e.type === "income").reduce((a, e) => a + e.amount, 0);
+  document.getElementById("fundTotal").textContent = fmt(FUND + donated);
+  document.getElementById("spentTotal").textContent = fmt(spent);
+  document.getElementById("balance").textContent = fmt(FUND + donated - spent);
+
+  // 지출 목록 (최신순)
+  const list = document.getElementById("expenseList");
+  list.innerHTML = "";
+  if (expenses.length === 0) {
+    list.innerHTML = '<p class="empty-msg">아직 지출이 없어요</p>';
+  } else {
+    [...expenses].sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id)).forEach(e => {
+      const row = document.createElement("div");
+      row.className = "expense";
+
+      let thumb;
+      if (e.photo) {
+        thumb = document.createElement("img");
+        thumb.className = "thumb";
+        thumb.src = e.photo;
+        thumb.onclick = () => showLightbox(e.photo);
+      } else {
+        thumb = document.createElement("div");
+        thumb.className = "thumb empty";
+        thumb.textContent = e.type === "income" ? "💝" : "🧾";
+      }
+
+      const info = document.createElement("div");
+      info.className = "info";
+      const dateStr = e.date ? e.date.slice(5).replace("-", "/") : "";
+      info.innerHTML =
+        '<div class="top"><span class="desc"></span><span class="amount"></span></div>' +
+        '<div class="meta"></div>';
+      const isIncome = e.type === "income";
+      info.querySelector(".desc").textContent = e.desc;
+      info.querySelector(".amount").textContent = (isIncome ? "+" : "") + fmt(e.amount);
+      if (isIncome) info.querySelector(".amount").style.color = "var(--accent)";
+      info.querySelector(".meta").textContent =
+        (isIncome ? "찬조 · " : "") + dateStr + " · " + e.participants.join(", ");
+
+      const del = document.createElement("button");
+      del.className = "del";
+      del.textContent = "삭제";
+      del.onclick = async () => {
+        if (!confirm('"' + e.desc + '" 지출을 삭제할까요?')) return;
+        await dbDelete(e.id);
+        expenses = expenses.filter(x => x.id !== e.id);
+        render();
+      };
+      info.appendChild(del);
+
+      row.appendChild(thumb);
+      row.appendChild(info);
+      list.appendChild(row);
+    });
+  }
+
+  // 정산표
+  const shares = Object.fromEntries(MEMBERS.map(m => [m, 0]));
+  expenses.forEach(e => {
+    const sign = e.type === "income" ? -1 : 1;
+    const per = e.amount / e.participants.length * sign;
+    e.participants.forEach(p => { if (p in shares) shares[p] += per; });
+  });
+  const body = document.getElementById("settleBody");
+  body.innerHTML = "";
+  MEMBERS.forEach(m => {
+    const refund = FEES[m] - shares[m] + (EXTRA_PAID[m] || 0);
+    const tr = document.createElement("tr");
+    const cls = refund >= 0 ? "plus" : "minus";
+    const paid = FEES[m] + (EXTRA_PAID[m] || 0);
+    tr.innerHTML = "<td>" + m + "</td><td>" + fmt(paid) + "</td><td>" + fmt(shares[m]) +
+      '</td><td class="' + cls + '">' + (refund >= 0 ? fmt(refund) : "-" + fmt(-refund)) + "</td>";
+    body.appendChild(tr);
+  });
+}
+
+function showLightbox(src) {
+  document.getElementById("lightboxImg").src = src;
+  document.getElementById("lightbox").style.display = "flex";
+}
+document.getElementById("lightbox").onclick = () => {
+  document.getElementById("lightbox").style.display = "none";
+};
+
+// ---------- 폼 ----------
+const membersBox = document.getElementById("fMembers");
+MEMBERS.forEach(m => {
+  const label = document.createElement("label");
+  const cb = document.createElement("input");
+  cb.type = "checkbox"; cb.value = m; cb.checked = true;
+  label.appendChild(cb);
+  label.appendChild(document.createTextNode(m));
+  membersBox.appendChild(label);
+});
+
+document.querySelectorAll('input[name="etype"]').forEach(r => {
+  r.onchange = () => {
+    const isIncome = r.value === "income" && r.checked;
+    document.getElementById("fDesc").placeholder = isIncome ? "예: 스윗워러님 찬조" : "예: 저녁 갈비";
+    document.getElementById("pLabel").textContent = isIncome
+      ? "혜택을 나눌 사람 (보통 전원 체크)"
+      : "참여자 (헤더님 가신 뒤엔 헤더 체크 해제)";
+    document.getElementById("submitBtn").textContent = isIncome ? "찬조 기록하기" : "지출 기록하기";
+  };
+});
+
+document.getElementById("photoBtn").onclick = () => document.getElementById("fPhoto").click();
+document.getElementById("fPhoto").onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    pendingPhoto = await compressImage(file);
+    const pv = document.getElementById("photoPreview");
+    pv.src = pendingPhoto;
+    pv.style.display = "block";
+    document.getElementById("photoBtn").textContent = "📷 사진 바꾸기";
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+document.getElementById("expenseForm").onsubmit = async e => {
+  e.preventDefault();
+  const participants = [...membersBox.querySelectorAll("input:checked")].map(c => c.value);
+  if (participants.length === 0) { alert("참여자를 한 명 이상 선택해 주세요"); return; }
+
+  const item = {
+    id: Date.now().toString(36),
+    type: document.querySelector('input[name="etype"]:checked').value,
+    date: document.getElementById("fDate").value,
+    desc: document.getElementById("fDesc").value.trim(),
+    amount: Number(document.getElementById("fAmount").value),
+    participants,
+    photo: pendingPhoto
+  };
+  await dbPut(item);
+  expenses.push(item);
+
+  // 폼 리셋 (날짜·참여자는 유지)
+  document.getElementById("fDesc").value = "";
+  document.getElementById("fAmount").value = "";
+  pendingPhoto = null;
+  document.getElementById("fPhoto").value = "";
+  document.getElementById("photoPreview").style.display = "none";
+  document.getElementById("photoBtn").textContent = "📷 사진 붙이기";
+  render();
+};
+
+// ---------- 시작 ----------
+(async function init() {
+  document.getElementById("fDate").value = new Date().toISOString().slice(0, 10);
+  await openDB();
+  expenses = await dbAll();
+
+  // 첫 실행이면 숙소비 자동 등록
+  if (!localStorage.getItem("trip2607-seeded")) {
+    if (expenses.length === 0) {
+      const stay = {
+        id: "stay",
+        date: "2026-07-09",
+        desc: "숙소비 (6박)",
+        amount: 790139,
+        participants: [...MEMBERS],
+        photo: null
+      };
+      await dbPut(stay);
+      expenses.push(stay);
+    }
+    localStorage.setItem("trip2607-seeded", "1");
+  }
+  render();
+})();
+</script>
+</body>
+</html>
