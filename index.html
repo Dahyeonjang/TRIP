@@ -118,6 +118,15 @@
   }
   .empty-msg { text-align: center; color: var(--sub); font-size: 13px; padding: 16px 0; }
 
+  .feerow { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+  .feerow .fname { width: 52px; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .feerow .fcol { flex: 1; font-size: 11px; color: var(--sub); text-align: center; }
+  .feerow input {
+    flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 16px; background: #fdfcfa; color: var(--ink);
+    -webkit-appearance: none; appearance: none;
+  }
+
   .catrow { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
   .catrow .cname { width: 60px; font-weight: 600; flex-shrink: 0; }
   .catrow .cbar { flex: 1; height: 8px; background: #f0ece4; border-radius: 4px; overflow: hidden; }
@@ -233,8 +242,22 @@
       · 부담액 = 각 지출을 참여자 수로 나눈 몫의 합<br>
       · 찬조(스윗워러님 등)는 모인 돈에 더해지고, 혜택 나눈 사람들의 부담액을 줄여줘요<br>
       · 따로 결제 = 회비가 아니라 개인 돈으로 낸 금액 — 돌려받을 돈에 자동으로 더해져요<br>
-      · <strong>퍼핀님은 초과 납입 600,000원</strong>이 돌려받을 돈에 이미 포함되어 있어요<br>
+      · <strong>추가 납입금</strong>(퍼핀님 등)은 돌려받을 돈에 이미 포함되어 있어요 — 금액은 아래 회비 설정에서 수정<br>
       · 지출을 추가할 때마다 자동으로 다시 계산됩니다
+    </p>
+  </section>
+
+  <section>
+    <h2>👥 회비 설정</h2>
+    <div class="feerow">
+      <span class="fname"></span>
+      <span class="fcol">회비</span>
+      <span class="fcol">추가 납입</span>
+    </div>
+    <div id="feeRows"></div>
+    <p class="note">
+      · 회비가 바뀌면 여기서 숫자만 고치세요 — 모인 돈·정산표가 바로 다시 계산돼요<br>
+      · 추가 납입 = 회비 외에 더 보낸 돈 (퍼핀님 600,000원처럼 전액 돌려받을 몫)
     </p>
   </section>
 
@@ -256,9 +279,23 @@
 
 <script>
 const MEMBERS = ["퍼핀", "솔담", "단무지", "헤더"];
-const FEES = { "퍼핀": 400000, "솔담": 400000, "단무지": 400000, "헤더": 300000 };
-const EXTRA_PAID = { "퍼핀": 600000 }; // 초과 납입분 (그대로 반환)
-const FUND = Object.values(FEES).reduce((a, b) => a + b, 0);
+const DEFAULT_FEES = { "퍼핀": 400000, "솔담": 400000, "단무지": 400000, "헤더": 300000 };
+const DEFAULT_EXTRA = { "퍼핀": 600000 }; // 초과 납입분 (그대로 반환)
+let FEES = Object.assign({}, DEFAULT_FEES);
+let EXTRA_PAID = Object.assign({}, DEFAULT_EXTRA);
+
+function loadFees() {
+  try {
+    const s = JSON.parse(localStorage.getItem("trip-fees"));
+    if (s && s.fees) {
+      FEES = Object.assign({}, DEFAULT_FEES, s.fees);
+      EXTRA_PAID = Object.assign({}, s.extra || {});
+    }
+  } catch (e) {}
+}
+function saveFees() {
+  localStorage.setItem("trip-fees", JSON.stringify({ fees: FEES, extra: EXTRA_PAID }));
+}
 
 const fmt = n => Math.round(n).toLocaleString("ko-KR") + "원";
 const usdFmt = n => "$" + (Number.isInteger(n) ? n.toLocaleString("en-US") : n.toFixed(2));
@@ -331,6 +368,7 @@ let editingId = null;
 
 // ---------- 렌더링 ----------
 function render() {
+  const FUND = Object.values(FEES).reduce((a, b) => a + b, 0);
   const spent = expenses.filter(e => e.type !== "income").reduce((a, e) => a + e.amount, 0);
   const donated = expenses.filter(e => e.type === "income").reduce((a, e) => a + e.amount, 0);
   // 회비에서 나간 지출만 잔액에서 차감 (개인 결제는 정산 때 돌려줌)
@@ -682,9 +720,34 @@ document.getElementById("expenseForm").onsubmit = async e => {
   render();
 };
 
+// ---------- 회비 설정 ----------
+function buildFeeRows() {
+  const box = document.getElementById("feeRows");
+  box.innerHTML = "";
+  MEMBERS.forEach(m => {
+    const row = document.createElement("div");
+    row.className = "feerow";
+    const name = document.createElement("span");
+    name.className = "fname";
+    name.textContent = m;
+    const fee = document.createElement("input");
+    fee.type = "number"; fee.min = "0"; fee.step = "any";
+    fee.value = FEES[m] || 0;
+    fee.oninput = () => { FEES[m] = Number(fee.value) || 0; saveFees(); render(); };
+    const extra = document.createElement("input");
+    extra.type = "number"; extra.min = "0"; extra.step = "any";
+    extra.value = EXTRA_PAID[m] || 0;
+    extra.oninput = () => { EXTRA_PAID[m] = Number(extra.value) || 0; saveFees(); render(); };
+    row.appendChild(name);
+    row.appendChild(fee);
+    row.appendChild(extra);
+    box.appendChild(row);
+  });
+}
+
 // ---------- 데이터 내보내기 / 가져오기 ----------
 document.getElementById("exportBtn").onclick = () => {
-  const data = { app: "trip-2607", exportedAt: new Date().toISOString(), expenses };
+  const data = { app: "trip-2607", exportedAt: new Date().toISOString(), fees: FEES, extra: EXTRA_PAID, expenses };
   const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -707,6 +770,12 @@ document.getElementById("importFile").onchange = async e => {
     }
     for (const item of list) { if (item && item.id) await dbPut(item); }
     expenses = await dbAll();
+    if (data.fees) {
+      FEES = Object.assign({}, DEFAULT_FEES, data.fees);
+      EXTRA_PAID = Object.assign({}, data.extra || {});
+      saveFees();
+      buildFeeRows();
+    }
     render();
     alert("가져오기 완료! (" + list.length + "건)");
   } catch (err) {
@@ -718,6 +787,8 @@ document.getElementById("importFile").onchange = async e => {
 // ---------- 시작 ----------
 (async function init() {
   document.getElementById("fDate").value = new Date().toISOString().slice(0, 10);
+  loadFees();
+  buildFeeRows();
   await openDB();
   expenses = await dbAll();
 
