@@ -746,12 +746,27 @@ function buildFeeRows() {
 }
 
 // ---------- 데이터 내보내기 / 가져오기 ----------
-document.getElementById("exportBtn").onclick = () => {
+document.getElementById("exportBtn").onclick = async () => {
   const data = { app: "trip-2607", exportedAt: new Date().toISOString(), fees: FEES, extra: EXTRA_PAID, expenses };
-  const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+  const json = JSON.stringify(data);
+  const fileName = "캄보디아정산_" + new Date().toISOString().slice(0, 10) + ".json";
+
+  // 아이폰 등: 공유 시트로 카톡에 바로 보내기
+  try {
+    const file = new File([json], fileName, { type: "application/json" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "캄보디아 정산 데이터" });
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") return; // 사용자가 취소함
+  }
+
+  // 그 외: 파일로 저장
+  const blob = new Blob([json], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "캄보디아정산_" + new Date().toISOString().slice(0, 10) + ".json";
+  a.download = fileName;
   a.click();
   URL.revokeObjectURL(a.href);
 };
