@@ -299,7 +299,7 @@ function saveFees() {
 
 const fmt = n => Math.round(n).toLocaleString("ko-KR") + "원";
 const usdFmt = n => "$" + (Number.isInteger(n) ? n.toLocaleString("en-US") : n.toFixed(2));
-const DEFAULT_RATE = 1380;
+const DEFAULT_RATE = 1500;
 const savedRate = () => Number(localStorage.getItem("trip-usd-rate")) || DEFAULT_RATE;
 
 // ---------- IndexedDB ----------
@@ -530,7 +530,7 @@ function resetPayer() {
 }
 
 // 항목 선택 (프리셋 + 직접 입력)
-const CATEGORIES = ["식비", "교통", "관광", "선물", "간식", "숙소", "기타"];
+const CATEGORIES = ["식비", "카페", "간식", "마트", "교통", "관광", "마사지", "기념품", "선물", "헌금", "숙소", "기타"];
 const catsBox = document.getElementById("fCats");
 [...CATEGORIES, "✏️ 직접 입력"].forEach((c, i) => {
   const label = document.createElement("label");
