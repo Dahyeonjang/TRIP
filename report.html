@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="퍼핀·솔담·단무지·헤더 네 사람의 캄보디아 여행 정산 내역">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}</style>
+<title>캄보디아 여행 정산</title>
+<style>
+  :root {
+    --ground: #eef1ed;
+    --surface: #ffffff;
+    --surface-2: #f6f8f5;
+    --line: #dbe2dc;
+    --ink: #18211c;
+    --muted: #67766d;
+    --faint: #93a099;
+    --jade: #2f6b54;
+    --jade-soft: #e2ede7;
+    --brass: #9a7a2e;
+    --brass-soft: #f3ecdb;
+    --brick: #a8462f;
+    --brick-soft: #f6e5e0;
+    --shadow: 0 1px 2px rgba(24, 33, 28, .05), 0 8px 24px -12px rgba(24, 33, 28, .16);
+    --sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #10150f; --surface: #191f1a; --surface-2: #1f2620;
+      --line: #303a33; --ink: #e5eae5; --muted: #90a096; --faint: #6b7a72;
+      --jade: #64b48c; --jade-soft: #1c2f26;
+      --brass: #cfa757; --brass-soft: #2b2517;
+      --brick: #e08268; --brick-soft: #33201b;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #10150f; --surface: #191f1a; --surface-2: #1f2620;
+    --line: #303a33; --ink: #e5eae5; --muted: #90a096; --faint: #6b7a72;
+    --jade: #64b48c; --jade-soft: #1c2f26;
+    --brass: #cfa757; --brass-soft: #2b2517;
+    --brick: #e08268; --brick-soft: #33201b;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1ed; --surface: #ffffff; --surface-2: #f6f8f5;
+    --line: #dbe2dc; --ink: #18211c; --muted: #67766d; --faint: #93a099;
+    --jade: #2f6b54; --jade-soft: #e2ede7;
+    --brass: #9a7a2e; --brass-soft: #f3ecdb;
+    --brick: #a8462f; --brick-soft: #f6e5e0;
+    --shadow: 0 1px 2px rgba(24,33,28,.05), 0 8px 24px -12px rgba(24,33,28,.16);
+  }
+
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.6;
+    -webkit-text-size-adjust: 100%; overflow-x: hidden;
+  }
+  .wrap { max-width: 660px; margin: 0 auto; padding: 28px 16px 72px; display: flex; flex-direction: column; gap: 20px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+
+  header { text-align: center; padding: 8px 0 4px; }
+  .eyebrow {
+    margin: 0 0 10px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--brass); font-weight: 700;
+  }
+  h1 {
+    margin: 0; font-size: clamp(28px, 8vw, 40px); font-weight: 800;
+    letter-spacing: -.035em; text-wrap: balance; line-height: 1.15;
+  }
+  header .who { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+  header .who b { color: var(--ink); font-weight: 600; }
+
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px 18px; box-shadow: var(--shadow); }
+  h2 { margin: 0 0 4px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .hint { margin: 0 0 16px; font-size: 13px; color: var(--muted); }
+  .hint:last-child { margin-bottom: 0; }
+
+  .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); padding: 0; overflow: hidden; }
+  .tile { background: var(--surface); padding: 18px 10px; text-align: center; }
+  .tile dt { font-size: 11px; color: var(--muted); margin-bottom: 7px; letter-spacing: .02em; }
+  .tile dd { margin: 0; font-size: clamp(13px, 3.6vw, 16px); font-weight: 700; }
+  .tile.left dd { color: var(--jade); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 11px 8px; text-align: right; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font-size: 11px; font-weight: 600; color: var(--muted); border-bottom-width: 1px; }
+  tbody tr:last-child td { border-bottom: none; }
+  .scroll { overflow-x: auto; margin: 0 -18px; padding: 0 18px; }
+  .name { font-weight: 700; }
+
+  .chip {
+    display: inline-block; padding: 3px 9px; border-radius: 20px;
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+  }
+  .chip.get { background: var(--jade-soft); color: var(--jade); }
+  .chip.owe { background: var(--brick-soft); color: var(--brick); }
+  .chip.even { background: var(--surface-2); color: var(--muted); }
+
+  .names { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+  .names button {
+    font: inherit; font-weight: 700; font-size: 15px; cursor: pointer;
+    padding: 13px 4px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--muted); transition: transform .12s ease;
+  }
+  .names button:hover { border-color: var(--jade); color: var(--ink); }
+  .names button:active { transform: scale(.97); }
+  .names button[aria-pressed="true"] { background: var(--jade); border-color: var(--jade); color: #fff; }
+  .names button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  #me { min-height: 90px; }
+  .verdict { text-align: center; padding: 8px 0 22px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .verdict .lead { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .verdict .big { font-size: clamp(32px, 10vw, 44px); font-weight: 800; letter-spacing: -.04em; line-height: 1.1; }
+  .verdict .big.get { color: var(--jade); }
+  .verdict .big.owe { color: var(--brick); }
+  .verdict .math { font-size: 12px; color: var(--faint); margin-top: 10px; }
+  .placeholder { text-align: center; color: var(--faint); font-size: 14px; padding: 26px 0; }
+
+  .subhead { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin: 22px 0 10px; }
+  .subhead:first-of-type { margin-top: 0; }
+
+  .bar { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+  .bar .k { width: 52px; flex-shrink: 0; font-weight: 600; }
+  .bar .track { flex: 1; height: 7px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--jade); border-radius: 4px; }
+  .bar .txt { flex: 1; min-width: 0; font-size: 13px; }
+  .bar .v { min-width: 92px; text-align: right; white-space: nowrap; }
+  .bar .v small { color: var(--faint); margin-left: 4px; }
+
+  .donors { display: flex; flex-direction: column; gap: 10px; }
+  .donor {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding: 12px 14px; border-radius: 12px; background: var(--brass-soft);
+  }
+  .donor .d-name { font-weight: 700; font-size: 14px; }
+  .donor .d-note { display: block; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .donor .d-amt { font-weight: 700; color: var(--brass); white-space: nowrap; }
+
+  details { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 18px; }
+  details[open] summary { margin-bottom: 12px; }
+  summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--jade); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  summary:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; border-radius: 4px; }
+
+  .note { font-size: 12px; color: var(--muted); background: var(--surface-2); border-radius: 10px; padding: 12px 14px; margin-top: 14px; }
+  .note b { color: var(--ink); }
+  footer { text-align: center; font-size: 12px; color: var(--faint); padding-top: 4px; }
+  .fade { animation: fade .22s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  @media (max-width: 400px) { .names { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026 · 7월 9일 – 15일</p>
+    <h1>캄보디아 여행 정산</h1>
+    <p class="who">퍼핀 · 솔담 · 단무지 · 헤더 &nbsp;—&nbsp; 총무 <b>다현</b></p>
+  </header>
+
+  <section class="totals" id="totals"></section>
+
+  <section>
+    <h2>최종 정산</h2>
+    <p class="hint">각자 낸 회비에서 실제로 쓴 몫을 뺀 금액이에요.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>이름</th><th>낸 회비</th><th>내 부담</th><th>정산</th></tr></thead>
+        <tbody id="settle"></tbody>
+      </table>
+    </div>
+    <div class="note" id="flow"></div>
+  </section>
+
+  <section>
+    <h2>내 내역 자세히 보기</h2>
+    <p class="hint">이름을 누르면 어디에 얼마를 썼는지 전부 볼 수 있어요.</p>
+    <div class="names" id="names"></div>
+    <div id="me"><p class="placeholder">위에서 이름을 눌러주세요</p></div>
+  </section>
+
+  <section>
+    <h2>찬조해 주신 분들</h2>
+    <p class="hint">이 돈 덕분에 네 사람의 부담이 크게 줄었어요.</p>
+    <div class="donors" id="donors"></div>
+  </section>
+
+  <section>
+    <h2>어디에 썼나</h2>
+    <p class="hint" id="cat-hint"></p>
+    <div id="cats"></div>
+  </section>
+
+  <footer>환율 $1 = 1,500원 · 전체 61건 기록</footer>
+</div>
+
+<script>
+const D = {"fees":{"퍼핀":400000,"솔담":400000,"단무지":400000,"헤더":300000},"extra":{},"expenses":[{"id":"r59","type":"expense","category":"카페","payer":"회비","date":"2026-07-15","desc":"카페드디어","amount":21600,"usd":14.4,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r58","type":"expense","category":"카페","payer":"회비","date":"2026-07-15","desc":"버블티","amount":18750,"usd":12.5,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r57","type":"expense","category":"기타","payer":"회비","date":"2026-07-15","desc":"잔돈체인지","amount":1800,"usd":1.2,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r56","type":"expense","category":"카페","payer":"회비","date":"2026-07-15","desc":"아침커피","amount":15000,"usd":10,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r55","type":"expense","category":"선물","payer":"회비","date":"2026-07-15","desc":"스윗워러님 감사","amount":450000,"usd":300,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r54","type":"expense","category":"식비","payer":"회비","date":"2026-07-14","desc":"루프탑레스토랑","amount":163500,"usd":109,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r53","type":"expense","category":"마사지","payer":"회비","date":"2026-07-14","desc":"마사지팁","amount":15000,"usd":10,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r52","type":"expense","category":"마사지","payer":"회비","date":"2026-07-14","desc":"마사지","amount":288000,"usd":192,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r51","type":"expense","category":"교통","payer":"회비","date":"2026-07-13","desc":"그랩","amount":9000,"usd":6,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r50","type":"expense","category":"마트","payer":"회비","date":"2026-07-13","desc":"럭키마트","amount":42600,"usd":28.4,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r49","type":"expense","category":"카페","payer":"회비","date":"2026-07-13","desc":"커피 배달","amount":11400,"usd":7.6,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r48","type":"expense","category":"교통","payer":"회비","date":"2026-07-13","desc":"택시","amount":7500,"usd":5,"rate":1500,"participants":["퍼핀","솔담","단무지"],"photo":null},{"id":"r47","type":"expense","category":"카페","payer":"회비","date":"2026-07-13","desc":"브라운커피","amount":6615,"usd":4.41,"rate":1500,"participants":["퍼핀","헤더"],"photo":null},{"id":"r46","type":"expense","category":"카페","payer":"회비","date":"2026-07-13","desc":"소울카페","amount":9000,"usd":6,"rate":1500,"participants":["퍼핀","헤더"],"photo":null},{"id":"r45","type":"expense","category":"카페","payer":"회비","date":"2026-07-13","desc":"스타벅스","amount":8370,"usd":5.58,"rate":1500,"participants":["솔담","단무지"],"photo":null},{"id":"r44","type":"expense","category":"카페","payer":"회비","date":"2026-07-13","desc":"카페","amount":8775,"usd":5.85,"rate":1500,"participants":["퍼핀","헤더"],"photo":null},{"id":"r43","type":"expense","category":"식비","payer":"회비","date":"2026-07-13","desc":"점심","amount":61125,"usd":40.75,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r42","type":"expense","category":"카페","payer":"회비","date":"2026-07-13","desc":"스윗워러님회사카페","amount":6000,"usd":4,"rate":1500,"participants":["솔담","단무지"],"photo":null},{"id":"r41","type":"expense","category":"카페","payer":"회비","date":"2026-07-13","desc":"아침커피","amount":9900,"usd":6.6,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r40","type":"expense","category":"기념품","payer":"회비","date":"2026-07-12","desc":"어메이징캄보디아","amount":18000,"usd":12,"rate":1500,"participants":["단무지"],"photo":null},{"id":"r39","type":"expense","category":"식비","payer":"회비","date":"2026-07-12","desc":"단무지님 야시장","amount":2025,"usd":1.35,"rate":1500,"participants":["단무지"],"photo":null},{"id":"r38","type":"expense","category":"카페","payer":"회비","date":"2026-07-12","desc":"아침커피","amount":10500,"usd":7,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r36","type":"expense","category":"식비","payer":"회비","date":"2026-07-12","desc":"기숙사 아이들과 고기","amount":296715,"usd":197.81,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r35","type":"expense","category":"기념품","payer":"회비","date":"2026-07-12","desc":"어메이징캄보디아","amount":6450,"usd":4.3,"rate":1500,"participants":["헤더"],"photo":null},{"id":"r34","type":"expense","category":"기념품","payer":"회비","date":"2026-07-12","desc":"어메이징 캄보디아","amount":63675,"usd":42.45,"rate":1500,"participants":["솔담"],"photo":null},{"id":"r33","type":"expense","category":"기념품","payer":"회비","date":"2026-07-12","desc":"어메이징캄보디아","amount":38145,"usd":25.43,"rate":1500,"participants":["퍼핀"],"photo":null},{"id":"r32","type":"expense","category":"관광","payer":"회비","date":"2026-07-12","desc":"사진","amount":5595,"usd":3.73,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r31","type":"expense","category":"카페","payer":"회비","date":"2026-07-12","desc":"츠타야 서점","amount":71115,"usd":47.41,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r30","type":"expense","category":"헌금","payer":"회비","date":"2026-07-12","desc":"교회 헌금","amount":300000,"usd":200,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r29","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"헤더후추","amount":13755,"usd":9.17,"rate":1500,"participants":["헤더"],"photo":null},{"id":"r28","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"단무지후추","amount":26760,"usd":17.84,"rate":1500,"participants":["단무지"],"photo":null},{"id":"r27","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"퍼핀후추","amount":35955,"usd":23.97,"rate":1500,"participants":["퍼핀"],"photo":null},{"id":"r26","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"솔담후추","amount":28530,"usd":19.02,"rate":1500,"participants":["솔담"],"photo":null},{"id":"r25","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"단무지마트","amount":2595,"usd":1.73,"rate":1500,"participants":["단무지"],"photo":null},{"id":"r24","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"솔담마트","amount":14235,"usd":9.49,"rate":1500,"participants":["솔담"],"photo":null},{"id":"r23","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"헤더마트","amount":23145,"usd":15.43,"rate":1500,"participants":["헤더"],"photo":null},{"id":"r22","type":"expense","category":"마트","payer":"회비","date":"2026-07-11","desc":"럭키마트","amount":28350,"usd":18.9,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r21","type":"expense","category":"식비","payer":"회비","date":"2026-07-11","desc":"매콩강한식당","amount":81000,"usd":54,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r20","type":"expense","category":"간식","payer":"회비","date":"2026-07-11","desc":"돼지고기, 만두, 옥수수, 패션후르츠,","amount":4500,"usd":3,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r19","type":"expense","category":"기념품","payer":"회비","date":"2026-07-11","desc":"머리끈(뜨게수업)","amount":1500,"usd":1,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r18","type":"expense","category":"마트","payer":"회비","date":"2026-07-11","desc":"마트","amount":48630,"usd":32.42,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r17","type":"expense","category":"식비","payer":"회비","date":"2026-07-11","desc":"마마타이","amount":67200,"usd":44.8,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r16","type":"expense","category":"간식","payer":"회비","date":"2026-07-11","desc":"사탕수수","amount":9000,"usd":6,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r15","type":"expense","category":"간식","payer":"회비","date":"2026-07-11","desc":"시장간식","amount":2250,"usd":1.5,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r14","type":"expense","category":"선물","payer":"회비","date":"2026-07-11","desc":"야간비행님, 스윗워러님 악세사리 선물","amount":60000,"usd":40,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r13","type":"income","category":null,"payer":null,"date":"2026-07-11","desc":"자스민 꽃 (스윗워러님)","amount":3750,"usd":2.5,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r13b","type":"income","category":null,"payer":null,"date":"2026-07-11","desc":"주차비 (스윗워러님)","amount":3750,"usd":2.5,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r12","type":"expense","category":"카페","payer":"회비","date":"2026-07-11","desc":"집앞 커피숍","amount":15000,"usd":10,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r11","type":"expense","category":"마트","payer":"회비","date":"2026-07-10","desc":"럭키마트","amount":43605,"usd":29.07,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r10","type":"expense","category":"식비","payer":"회비","date":"2026-07-10","desc":"점저?","amount":33000,"usd":22,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r09","type":"expense","category":"간식","payer":"회비","date":"2026-07-10","desc":"망고스틴물","amount":10500,"usd":7,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r08","type":"expense","category":"카페","payer":"회비","date":"2026-07-10","desc":"브라운커피(솔담 단무지 핸드드립)","amount":8250,"usd":5.5,"rate":1500,"participants":["솔담","단무지"],"photo":null},{"id":"r07","type":"expense","category":"카페","payer":"회비","date":"2026-07-10","desc":"브라운커피","amount":29250,"usd":19.5,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r06","type":"expense","category":"식비","payer":"회비","date":"2026-07-10","desc":"쌀국수","amount":22500,"usd":15,"rate":1500,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r05","type":"expense","category":"숙소","payer":"회비","date":"2026-07-09","desc":"숙소비 (6박)","amount":790139,"usd":null,"rate":null,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r04c","type":"income","category":null,"payer":null,"date":"2026-07-09","desc":"퍼핀님 찬조 (본인 몫)","amount":162781,"usd":null,"rate":null,"participants":["퍼핀"],"photo":null},{"id":"r04b","type":"income","category":null,"payer":null,"date":"2026-07-09","desc":"퍼핀님 찬조 (솔담·단무지·헤더 몫)","amount":437219,"usd":null,"rate":null,"participants":["솔담","단무지","헤더"],"photo":null},{"id":"r04","type":"income","category":null,"payer":null,"date":"2026-07-09","desc":"야간비행님 찬조","amount":1500000,"usd":null,"rate":null,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r03","type":"expense","category":"선물","payer":"회비","date":"2026-07-02","desc":"아기옷 4벌","amount":41830,"usd":null,"rate":null,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r02","type":"expense","category":"선물","payer":"회비","date":"2026-07-02","desc":"책(사막), 산모영양제","amount":84040,"usd":null,"rate":null,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null},{"id":"r01","type":"expense","category":"선물","payer":"회비","date":"2026-07-02","desc":"고체향수 15개","amount":44000,"usd":null,"rate":null,"participants":["퍼핀","솔담","단무지","헤더"],"photo":null}]};
+const MEMBERS = ["퍼핀", "솔담", "단무지", "헤더"];
+const won = n => Math.round(n).toLocaleString("ko-KR") + "원";
+const usd = e => e.usd != null ? "$" + (Number.isInteger(e.usd) ? e.usd : e.usd.toFixed(2)) : "";
+const day = d => d.slice(5).replace("-", "/");
+const el = (t, c, x) => { const n = document.createElement(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; };
+
+const expenses = D.expenses.filter(e => e.type !== "income");
+const incomes = D.expenses.filter(e => e.type === "income");
+const spent = expenses.reduce((a, e) => a + e.amount, 0);
+const donated = incomes.reduce((a, e) => a + e.amount, 0);
+const FUND = Object.values(D.fees).reduce((a, b) => a + b, 0);
+const balance = FUND + donated - spent;
+
+const gross = {}, benefit = {}, byCat = {}, solo = {};
+MEMBERS.forEach(m => { gross[m] = 0; benefit[m] = 0; byCat[m] = {}; solo[m] = []; });
+D.expenses.forEach(e => {
+  const per = e.amount / e.participants.length;
+  e.participants.forEach(p => {
+    if (!(p in gross)) return;
+    if (e.type === "income") { benefit[p] += per; return; }
+    gross[p] += per;
+    byCat[p][e.category] = (byCat[p][e.category] || 0) + per;
+    if (e.participants.length === 1) solo[p].push(e);
+  });
+});
+const share = m => gross[m] - benefit[m];
+const settleOf = m => D.fees[m] + (D.extra[m] || 0) - share(m);
+const isEven = v => Math.abs(v) < 0.5;
+
+// 합계 타일
+[["모인 돈", won(FUND + donated), ""], ["쓴 돈", won(spent), ""], ["남은 돈", won(balance), "left"]]
+  .forEach(([k, v, cls]) => {
+    const d = el("div", "tile " + cls);
+    d.appendChild(el("dt", null, k));
+    const dd = el("dd", "num", v);
+    d.appendChild(dd);
+    document.getElementById("totals").appendChild(d);
+  });
+
+// 정산표
+const tb = document.getElementById("settle");
+MEMBERS.forEach(m => {
+  const s = settleOf(m), tr = el("tr");
+  tr.appendChild(el("td", "name", m));
+  tr.appendChild(el("td", "num", won(D.fees[m])));
+  tr.appendChild(el("td", "num", won(share(m))));
+  const td = el("td");
+  td.appendChild(el("span", "chip " + (isEven(s) ? "even" : s > 0 ? "get" : "owe"),
+    isEven(s) ? "정산 완료" : s > 0 ? "+" + won(s) : "−" + won(-s)));
+  tr.appendChild(td);
+  tb.appendChild(tr);
+});
+
+// 정산 흐름 안내
+const owes = MEMBERS.filter(m => settleOf(m) < -0.5), gets = MEMBERS.filter(m => settleOf(m) > 0.5);
+document.getElementById("flow").innerHTML =
+  "<b>정산 방법</b><br>" +
+  owes.map(m => m + "님이 " + won(-settleOf(m)) + " 보내주시고,").join("<br>") + "<br>" +
+  gets.map(m => m + "님은 " + won(settleOf(m)) + " 돌려받으세요.").join("<br>") +
+  "<br><br>주고받고 나면 남은 돈 " + won(balance) + "과 정확히 맞아떨어져요.";
+
+// 찬조 (사람별로 묶기)
+const donorOf = e => {
+  const lead = e.desc.match(/^([^\s(]+님)/);
+  if (lead) return lead[1];
+  const paren = e.desc.match(/\(([^)]*님)\)/);
+  return paren ? paren[1] : e.desc;
+};
+const byDonor = {};
+incomes.forEach(e => {
+  const d = donorOf(e);
+  (byDonor[d] = byDonor[d] || { sum: 0, items: [] });
+  byDonor[d].sum += e.amount;
+  byDonor[d].items.push(e);
+});
+const dbox = document.getElementById("donors");
+Object.entries(byDonor).sort((a, b) => b[1].sum - a[1].sum).forEach(([d, v]) => {
+  const row = el("div", "donor");
+  const left = el("div");
+  left.appendChild(el("div", "d-name", d));
+  const notes = v.items.map(e => e.desc
+    .replace(/\s*\([^)]*님\)/, "")
+    .replace(/^[^\s]+님\s*/, "")
+    .replace(/^찬조\s*/, "")
+    .replace(/^\((.*)\)$/, "$1")
+    .trim()).filter(Boolean);
+  if (notes.length) left.appendChild(el("small", "d-note", notes.join(" · ")));
+  row.appendChild(left);
+  row.appendChild(el("div", "d-amt num", won(v.sum)));
+  dbox.appendChild(row);
+});
+
+// 항목별
+const catTotals = {};
+expenses.forEach(e => { catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; });
+const catList = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+document.getElementById("cat-hint").textContent = "여행 전체 지출 " + won(spent) + "을 항목별로 나눈 거예요.";
+const cbox = document.getElementById("cats");
+catList.forEach(([c, v]) => {
+  const row = el("div", "bar");
+  row.appendChild(el("span", "k", c));
+  const track = el("div", "track"), fill = el("div", "fill");
+  fill.style.width = Math.max(2, v / catList[0][1] * 100) + "%";
+  track.appendChild(fill); row.appendChild(track);
+  const val = el("span", "v num", won(v));
+  val.appendChild(el("small", null, Math.round(v / spent * 100) + "%"));
+  row.appendChild(val);
+  cbox.appendChild(row);
+});
+
+// 멤버 상세
+const meBox = document.getElementById("me");
+function renderMe(m) {
+  const s = settleOf(m);
+  meBox.innerHTML = "";
+  const box = el("div", "fade");
+
+  const v = el("div", "verdict");
+  v.appendChild(el("div", "lead", isEven(s) ? m + "님은" : s > 0 ? m + "님이 돌려받을 돈" : m + "님이 더 보낼 돈"));
+  const big = el("div", "big num " + (isEven(s) ? "" : s > 0 ? "get" : "owe"),
+    isEven(s) ? "정산 끝!" : won(Math.abs(s)));
+  v.appendChild(big);
+  v.appendChild(el("div", "math",
+    "낸 회비 " + won(D.fees[m]) + " − 내 부담 " + won(share(m)) +
+    (isEven(s) ? " = 0원 (딱 맞아요)" : "")));
+  box.appendChild(v);
+
+  if (m === "퍼핀") {
+    const n = el("div", "note");
+    n.innerHTML = "<b>퍼핀님은 왜 0원인가요?</b><br>퍼핀님은 100만원을 내셨어요. 그중 <b>회비 40만원</b>과 <b>찬조 60만원</b>인데, 찬조 60만원 중 " +
+      won(incomes.find(e => e.id === "r04c").amount) + "이 퍼핀님 본인 부담을 채우고, " +
+      won(incomes.find(e => e.id === "r04b").amount) + "이 솔담·단무지·헤더 세 분께 갔어요. 그래서 낸 돈과 쓴 돈이 딱 맞아 주고받을 게 없어요.";
+    box.appendChild(n);
+  }
+
+  box.appendChild(el("div", "subhead", "항목별 내 부담"));
+  const cats = Object.entries(byCat[m]).sort((a, b) => b[1] - a[1]);
+  cats.forEach(([c, val]) => {
+    const row = el("div", "bar");
+    row.appendChild(el("span", "k", c));
+    const track = el("div", "track"), fill = el("div", "fill");
+    fill.style.width = Math.max(2, val / cats[0][1] * 100) + "%";
+    track.appendChild(fill); row.appendChild(track);
+    row.appendChild(el("span", "v num", won(val)));
+    box.appendChild(row);
+  });
+
+  if (solo[m].length) {
+    box.appendChild(el("div", "subhead", m + "님만 쓴 것"));
+    solo[m].forEach(e => {
+      const row = el("div", "bar");
+      row.appendChild(el("span", "k num", day(e.date)));
+      row.appendChild(el("div", "txt", e.desc + (usd(e) ? " (" + usd(e) + ")" : "")));
+      row.appendChild(el("span", "v num", won(e.amount)));
+      box.appendChild(row);
+    });
+  }
+
+  box.appendChild(el("div", "subhead", "찬조로 줄어든 내 부담"));
+  incomes.filter(e => e.participants.includes(m)).forEach(e => {
+    const row = el("div", "bar");
+    row.appendChild(el("div", "txt", e.desc));
+    row.appendChild(el("span", "v num", "−" + won(e.amount / e.participants.length)));
+    box.appendChild(row);
+  });
+  const tot = el("div", "note");
+  tot.innerHTML = "쓴 돈 " + won(gross[m]) + " − 찬조 몫 <b>" + won(benefit[m]) + "</b> = 내 부담 <b>" + won(share(m)) + "</b>";
+  box.appendChild(tot);
+
+  const det = el("details");
+  const sm = el("summary", null, m + "님이 참여한 지출 전부 보기 (" + expenses.filter(e => e.participants.includes(m)).length + "건)");
+  det.appendChild(sm);
+  const sc = el("div", "scroll");
+  const tbl = el("table");
+  tbl.innerHTML = "<thead><tr><th>날짜</th><th>내용</th><th>전체</th><th>인원</th><th>내 몫</th></tr></thead>";
+  const body = el("tbody");
+  expenses.filter(e => e.participants.includes(m))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+    .forEach(e => {
+      const tr = el("tr");
+      tr.appendChild(el("td", "num", day(e.date)));
+      tr.appendChild(el("td", null, e.desc + (usd(e) ? " " + usd(e) : "")));
+      tr.appendChild(el("td", "num", won(e.amount)));
+      tr.appendChild(el("td", "num", e.participants.length));
+      tr.appendChild(el("td", "num", won(e.amount / e.participants.length)));
+      body.appendChild(tr);
+    });
+  tbl.appendChild(body);
+  sc.appendChild(tbl);
+  det.appendChild(sc);
+  box.appendChild(det);
+
+  meBox.appendChild(box);
+}
+
+const nbox = document.getElementById("names");
+MEMBERS.forEach(m => {
+  const b = el("button", null, m);
+  b.setAttribute("aria-pressed", "false");
+  b.onclick = () => {
+    nbox.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", "false"));
+    b.setAttribute("aria-pressed", "true");
+    renderMe(m);
+  };
+  nbox.appendChild(b);
+});
+</script>
+
+</body>
+</html>
