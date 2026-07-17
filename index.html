@@ -237,6 +237,19 @@
       · 지출을 추가할 때마다 자동으로 다시 계산됩니다
     </p>
   </section>
+
+  <section>
+    <h2>💾 데이터 백업</h2>
+    <div style="display: flex; gap: 8px;">
+      <button type="button" class="submit" id="exportBtn" style="background: #5a7a8c; margin-top: 0;">📤 내보내기</button>
+      <button type="button" class="submit" id="importBtn" style="background: #8c7a5a; margin-top: 0;">📥 가져오기</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="note">
+      내보내기 = 모든 기록(사진 포함)을 파일 하나로 저장해요.<br>
+      카톡 "나에게 보내기" 등으로 다른 기기에 옮긴 뒤 가져오기 하면 기록이 그대로 복원돼요.
+    </p>
+  </section>
 </div>
 
 <div id="lightbox"><img id="lightboxImg" alt=""></div>
@@ -667,6 +680,39 @@ document.getElementById("expenseForm").onsubmit = async e => {
   resetPayer();
   cancelEditMode();
   render();
+};
+
+// ---------- 데이터 내보내기 / 가져오기 ----------
+document.getElementById("exportBtn").onclick = () => {
+  const data = { app: "trip-2607", exportedAt: new Date().toISOString(), expenses };
+  const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "캄보디아정산_" + new Date().toISOString().slice(0, 10) + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
+document.getElementById("importFile").onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const list = Array.isArray(data) ? data : data.expenses;
+    if (!Array.isArray(list)) throw new Error("정산 앱에서 내보낸 파일이 아니에요");
+    if (!confirm("기록 " + list.length + "건을 불러올까요?\n(같은 기록은 덮어쓰고, 나머지는 추가돼요)")) {
+      e.target.value = "";
+      return;
+    }
+    for (const item of list) { if (item && item.id) await dbPut(item); }
+    expenses = await dbAll();
+    render();
+    alert("가져오기 완료! (" + list.length + "건)");
+  } catch (err) {
+    alert("가져오기 실패: " + err.message);
+  }
+  e.target.value = "";
 };
 
 // ---------- 시작 ----------
