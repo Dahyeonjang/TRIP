@@ -72,6 +72,26 @@
   }
   .members input { accent-color: var(--accent); }
 
+  .ccy-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--line); border-radius: 20px;
+    padding: 7px 12px; font-size: 13px; cursor: pointer; user-select: none;
+    background: #fdfcfa; color: var(--ink);
+  }
+  .ccy-chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .ccy-chip.add { border-style: dashed; color: var(--sub); }
+  .ccy-form {
+    margin-top: 8px; padding: 12px; border: 1px solid var(--line);
+    border-radius: 10px; background: #fdfcfa; display: flex; flex-direction: column; gap: 8px;
+  }
+  .ccy-form-row { display: flex; align-items: center; gap: 8px; }
+  .ccy-form-row input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px; background: #fff; color: var(--ink); }
+  .ccy-form-row input#ncRate { flex: 0 1 110px; }
+  .ccy-form-label { font-size: 13px; color: var(--sub); white-space: nowrap; }
+  .ccy-form-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .ccy-mini { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: var(--accent); color: #fff; }
+  .ccy-mini.ghost { background: #fff; color: var(--sub); border: 1px solid var(--line); }
+
   .photo-field { display: flex; align-items: center; gap: 10px; }
   .photo-btn {
     border: 1px dashed var(--line); background: #fdfcfa; border-radius: 10px;
@@ -170,7 +190,8 @@
         <label>구분</label>
         <div class="members">
           <label><input type="radio" name="etype" value="expense" checked>💸 지출</label>
-          <label><input type="radio" name="etype" value="income">💝 찬조 (돈 들어옴)</label>
+          <label><input type="radio" name="etype" value="fee">💰 회비 (걷은 돈)</label>
+          <label><input type="radio" name="etype" value="income">💝 찬조 (받은 돈)</label>
         </div>
       </div>
       <div class="field">
@@ -185,27 +206,39 @@
       </div>
       <div class="field">
         <label>내용</label>
-        <input type="text" id="fDesc" placeholder="예: 저녁 갈비" required>
+        <input type="text" id="fDesc" placeholder="예: 저녁 갈비">
       </div>
       <div class="field">
         <label>금액</label>
-        <div class="members" style="margin-bottom: 6px;">
-          <label><input type="radio" name="ccy" value="krw" checked>₩ 원화</label>
-          <label><input type="radio" name="ccy" value="usd">$ 달러</label>
-        </div>
+        <div class="members" id="fCcy" style="margin-bottom: 6px;"></div>
         <input type="number" id="fAmount" placeholder="예: 84000" min="0.01" step="any" required>
         <div id="rateRow" style="display: none; margin-top: 6px; font-size: 13px; color: var(--sub);">
-          환율 1$ =
-          <input type="number" id="fRate" step="any" min="1"
+          환율 1<span id="rateSym">$</span> =
+          <input type="number" id="fRate" step="any" min="0"
             style="width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 16px;">
           원 <span id="rateHint"></span>
         </div>
+        <div id="newCcyForm" class="ccy-form" style="display: none;">
+          <div class="ccy-form-row">
+            <input type="text" id="ncSym" maxlength="4" placeholder="기호 ₫" autocomplete="off">
+            <input type="text" id="ncName" maxlength="12" placeholder="이름 (동)" autocomplete="off">
+          </div>
+          <div class="ccy-form-row">
+            <span class="ccy-form-label">1<span id="ncSymEcho">₫</span> =</span>
+            <input type="number" id="ncRate" step="any" min="0" placeholder="환율" autocomplete="off">
+            <span>원</span>
+          </div>
+          <div class="ccy-form-btns">
+            <button type="button" id="ncCancel" class="ccy-mini ghost">취소</button>
+            <button type="button" id="ncSave" class="ccy-mini">추가</button>
+          </div>
+        </div>
       </div>
       <div class="field" id="payerField">
-        <label>누가 결제했나요?</label>
+        <label id="payerLabel">누가 결제했나요?</label>
         <div class="members" id="fPayers"></div>
       </div>
-      <div class="field">
+      <div class="field" id="participantField">
         <label id="pLabel">참여자 (헤더님 가신 뒤엔 헤더 체크 해제)</label>
         <div class="members" id="fMembers"></div>
       </div>
@@ -299,9 +332,46 @@ function saveFees() {
 }
 
 const fmt = n => Math.round(n).toLocaleString("ko-KR") + "원";
-const usdFmt = n => "$" + (Number.isInteger(n) ? n.toLocaleString("en-US") : n.toFixed(2));
-const DEFAULT_RATE = 1500;
-const savedRate = () => Number(localStorage.getItem("trip-usd-rate")) || DEFAULT_RATE;
+const numFmt = n => Number.isInteger(n) ? n.toLocaleString("en-US") : Number(n.toFixed(2)).toLocaleString("en-US");
+
+// ---------- 통화 (원화 기준 + 외화 여러 개) ----------
+const PRESET_CCY = [
+  { sym: "$",  name: "미국 달러" },
+  { sym: "€",  name: "유로" },
+  { sym: "¥",  name: "엔" },
+  { sym: "元", name: "위안" },
+  { sym: "₫",  name: "동" },
+  { sym: "฿",  name: "바트" },
+  { sym: "₱",  name: "페소" },
+  { sym: "Rp", name: "루피아" }
+];
+// 활성 외화 목록: { sym, name, rate }
+let CCY = [];
+let selectedCcy = null; // null = 원화, 아니면 CCY의 객체
+
+function loadCcy() {
+  try {
+    const s = JSON.parse(localStorage.getItem("trip-currencies"));
+    if (Array.isArray(s)) CCY = s.filter(c => c && c.sym);
+  } catch (e) {}
+}
+function saveCcy() { localStorage.setItem("trip-currencies", JSON.stringify(CCY)); }
+
+// 기존 데이터(usd 필드)를 표준 형태로: 외화 표시 라벨
+function fxLabelOf(e) {
+  if (e.fxAmt != null) return (e.fxSym || "") + numFmt(e.fxAmt);
+  if (e.usd != null) return "$" + numFmt(e.usd);
+  return "";
+}
+// 기존 usd 지출도 통화 목록에 자동 등록 (수정 가능하도록)
+function ensureCcyFromExpenses() {
+  const needUsd = expenses.some(e => e.usd != null && e.fxAmt == null);
+  if (needUsd && !CCY.some(c => c.sym === "$")) {
+    const sample = expenses.find(e => e.usd != null);
+    CCY.push({ sym: "$", name: "미국 달러", rate: (sample && sample.rate) || 1500 });
+    saveCcy();
+  }
+}
 
 // ---------- IndexedDB ----------
 let db;
@@ -369,16 +439,21 @@ let editingId = null;
 
 // ---------- 렌더링 ----------
 function render() {
+  const isExp = e => e.type !== "income" && e.type !== "fee"; // 실제 지출
   const FUND = Object.values(FEES).reduce((a, b) => a + b, 0);
-  const spent = expenses.filter(e => e.type !== "income").reduce((a, e) => a + e.amount, 0);
+  const spent = expenses.filter(isExp).reduce((a, e) => a + e.amount, 0);
   const donated = expenses.filter(e => e.type === "income").reduce((a, e) => a + e.amount, 0);
+  // 회비 기록 (멤버가 낸 종잣돈) — 멤버별 합
+  const feePaid = Object.fromEntries(MEMBERS.map(m => [m, 0]));
+  expenses.filter(e => e.type === "fee").forEach(e => { if (e.payer in feePaid) feePaid[e.payer] += e.amount; });
+  const feeTotal = Object.values(feePaid).reduce((a, b) => a + b, 0);
   // 회비에서 나간 지출만 잔액에서 차감 (개인 결제는 정산 때 돌려줌)
   const fundSpent = expenses
-    .filter(e => e.type !== "income" && (!e.payer || e.payer === "회비"))
+    .filter(e => isExp(e) && (!e.payer || e.payer === "회비"))
     .reduce((a, e) => a + e.amount, 0);
-  document.getElementById("fundTotal").textContent = fmt(FUND + donated);
+  document.getElementById("fundTotal").textContent = fmt(FUND + feeTotal + donated);
   document.getElementById("spentTotal").textContent = fmt(spent);
-  const balance = FUND + donated - fundSpent;
+  const balance = FUND + feeTotal + donated - fundSpent;
   document.getElementById("balance").textContent = fmt(balance);
   document.getElementById("balanceCard").classList.toggle("negative", balance < 0);
   document.getElementById("balanceNote").textContent = balance < 0 ? "⚠ 총무가 대신 내는 중" : "";
@@ -402,7 +477,7 @@ function render() {
       } else {
         thumb = document.createElement("div");
         thumb.className = "thumb empty";
-        thumb.textContent = e.type === "income" ? "💝" : "🧾";
+        thumb.textContent = e.type === "income" ? "💝" : e.type === "fee" ? "💰" : "🧾";
       }
 
       const info = document.createElement("div");
@@ -412,13 +487,16 @@ function render() {
         '<div class="top"><span class="desc"></span><span class="amount"></span></div>' +
         '<div class="meta"></div>';
       const isIncome = e.type === "income";
+      const isFee = e.type === "fee";
       info.querySelector(".desc").textContent = e.desc;
-      info.querySelector(".amount").textContent = (isIncome ? "+" : "") + fmt(e.amount);
-      if (isIncome) info.querySelector(".amount").style.color = "var(--accent)";
+      info.querySelector(".amount").textContent = (isIncome || isFee ? "+" : "") + fmt(e.amount);
+      if (isIncome || isFee) info.querySelector(".amount").style.color = "var(--accent)";
+      const fxLabel = fxLabelOf(e);
       info.querySelector(".meta").textContent =
-        (isIncome ? "찬조 · " : "") + (e.category ? e.category + " · " : "") +
-        (e.payer && e.payer !== "회비" ? e.payer + " 결제 · " : "") +
-        (e.usd ? usdFmt(e.usd) + " · " : "") +
+        (isIncome ? "찬조 · " : "") + (isFee ? "회비 · " : "") + (e.category ? e.category + " · " : "") +
+        (isFee && e.payer ? e.payer + "님 냄 · " : "") +
+        (!isFee && e.payer && e.payer !== "회비" ? e.payer + " 결제 · " : "") +
+        (fxLabel ? fxLabel + " · " : "") +
         dateStr + " · " + e.participants.join(", ");
 
       const edit = document.createElement("button");
@@ -447,7 +525,7 @@ function render() {
 
   // 항목별 합계
   const catTotals = {};
-  expenses.filter(e => e.type !== "income").forEach(e => {
+  expenses.filter(isExp).forEach(e => {
     const c = e.category || "미분류";
     catTotals[c] = (catTotals[c] || 0) + e.amount;
   });
@@ -474,22 +552,24 @@ function render() {
   // 정산표
   const shares = Object.fromEntries(MEMBERS.map(m => [m, 0]));
   expenses.forEach(e => {
+    if (e.type === "fee") return; // 회비는 분담 계산에서 제외
+    if (!e.participants || e.participants.length === 0) return;
     const sign = e.type === "income" ? -1 : 1;
     const per = e.amount / e.participants.length * sign;
     e.participants.forEach(p => { if (p in shares) shares[p] += per; });
   });
-  // 개인 돈으로 결제한 금액 (정산 때 돌려줌)
+  // 개인 돈으로 결제한 지출 (정산 때 돌려줌)
   const personalPaid = Object.fromEntries(MEMBERS.map(m => [m, 0]));
   expenses.forEach(e => {
-    if (e.type !== "income" && e.payer && e.payer in personalPaid) personalPaid[e.payer] += e.amount;
+    if (isExp(e) && e.payer && e.payer in personalPaid) personalPaid[e.payer] += e.amount;
   });
   const body = document.getElementById("settleBody");
   body.innerHTML = "";
   MEMBERS.forEach(m => {
-    const refund = FEES[m] + (EXTRA_PAID[m] || 0) + personalPaid[m] - shares[m];
+    const paid = FEES[m] + (EXTRA_PAID[m] || 0) + feePaid[m];
+    const refund = paid + personalPaid[m] - shares[m];
     const tr = document.createElement("tr");
     const cls = refund >= 0 ? "plus" : "minus";
-    const paid = FEES[m] + (EXTRA_PAID[m] || 0);
     tr.innerHTML = "<td>" + m + "</td><td>" + fmt(paid) + "</td><td>" +
       (personalPaid[m] ? fmt(personalPaid[m]) : "-") + "</td><td>" + fmt(shares[m]) +
       '</td><td class="' + cls + '">' + (refund >= 0 ? fmt(refund) : "-" + fmt(-refund)) + "</td>";
@@ -550,41 +630,144 @@ catsBox.onchange = () => {
   if (custom) input.focus();
 };
 
-// 통화 선택 (원화/달러)
-function isUsdMode() {
-  return document.querySelector('input[name="ccy"]:checked').value === "usd";
+// 통화 선택 (원화 기준 + 외화 여러 개)
+const ccyBox = document.getElementById("fCcy");
+function isForeignMode() { return selectedCcy !== null; }
+
+function renderCcyChips() {
+  ccyBox.innerHTML = "";
+  const krw = document.createElement("button");
+  krw.type = "button";
+  krw.className = "ccy-chip" + (selectedCcy === null ? " on" : "");
+  krw.textContent = "₩ 원화";
+  krw.onclick = () => selectCcy(null);
+  ccyBox.appendChild(krw);
+
+  CCY.forEach(c => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "ccy-chip" + (selectedCcy === c ? " on" : "");
+    chip.textContent = c.sym + " " + c.name;
+    chip.onclick = () => selectCcy(c);
+    ccyBox.appendChild(chip);
+  });
+
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "ccy-chip add";
+  add.textContent = "＋ 통화";
+  add.onclick = openNewCcyForm;
+  ccyBox.appendChild(add);
 }
+
+function selectCcy(c) {
+  selectedCcy = c;
+  closeNewCcyForm();
+  const foreign = c !== null;
+  document.getElementById("rateRow").style.display = foreign ? "block" : "none";
+  document.getElementById("fAmount").placeholder = foreign ? "예: 25" : "예: 84000";
+  if (foreign) {
+    document.getElementById("rateSym").textContent = c.sym;
+    document.getElementById("fRate").value = c.rate || "";
+  }
+  renderCcyChips();
+  updateRateHint();
+}
+
 function updateRateHint() {
+  if (selectedCcy === null) { document.getElementById("rateHint").textContent = ""; return; }
   const amt = Number(document.getElementById("fAmount").value);
-  const rate = Number(document.getElementById("fRate").value) || savedRate();
+  const rate = Number(document.getElementById("fRate").value) || 0;
   document.getElementById("rateHint").textContent =
-    amt > 0 ? "→ 약 " + fmt(amt * rate) : "";
+    amt > 0 && rate > 0 ? "→ 약 " + fmt(amt * rate) : "";
 }
-document.querySelectorAll('input[name="ccy"]').forEach(r => {
-  r.onchange = () => {
-    const usd = isUsdMode();
-    document.getElementById("rateRow").style.display = usd ? "block" : "none";
-    document.getElementById("fAmount").placeholder = usd ? "예: 25" : "예: 84000";
-    if (usd && !document.getElementById("fRate").value) {
-      document.getElementById("fRate").value = savedRate();
-    }
-    updateRateHint();
-  };
-});
-document.getElementById("fAmount").oninput = () => { if (isUsdMode()) updateRateHint(); };
-document.getElementById("fRate").oninput = updateRateHint;
+document.getElementById("fAmount").oninput = () => { if (isForeignMode()) updateRateHint(); };
+document.getElementById("fRate").oninput = () => {
+  if (selectedCcy) { selectedCcy.rate = Number(document.getElementById("fRate").value) || 0; saveCcy(); }
+  updateRateHint();
+};
+
+// 통화 추가 폼
+const ncForm = document.getElementById("newCcyForm");
+function openNewCcyForm() {
+  ncForm.style.display = "flex";
+  renderPresetPicks();
+  document.getElementById("ncSym").value = "";
+  document.getElementById("ncName").value = "";
+  document.getElementById("ncRate").value = "";
+  document.getElementById("ncSymEcho").textContent = "?";
+  document.getElementById("ncSym").focus();
+}
+function closeNewCcyForm() { ncForm.style.display = "none"; }
+function renderPresetPicks() {
+  let row = document.getElementById("ncPresets");
+  if (!row) {
+    row = document.createElement("div");
+    row.id = "ncPresets";
+    row.className = "members";
+    ncForm.insertBefore(row, ncForm.firstChild);
+  }
+  row.innerHTML = "";
+  const avail = PRESET_CCY.filter(p => !CCY.some(c => c.sym === p.sym && c.name === p.name));
+  if (avail.length === 0) { row.style.display = "none"; return; }
+  row.style.display = "flex";
+  avail.forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ccy-chip";
+    b.textContent = p.sym + " " + p.name;
+    b.onclick = () => {
+      document.getElementById("ncSym").value = p.sym;
+      document.getElementById("ncName").value = p.name;
+      document.getElementById("ncSymEcho").textContent = p.sym;
+      document.getElementById("ncRate").focus();
+    };
+    row.appendChild(b);
+  });
+}
+document.getElementById("ncSym").oninput = e => {
+  document.getElementById("ncSymEcho").textContent = e.target.value.trim() || "?";
+};
+document.getElementById("ncCancel").onclick = closeNewCcyForm;
+document.getElementById("ncSave").onclick = () => {
+  const sym = document.getElementById("ncSym").value.trim();
+  const name = document.getElementById("ncName").value.trim() || sym;
+  const rate = Number(document.getElementById("ncRate").value) || 0;
+  if (!sym) { alert("통화 기호를 입력해 주세요 (예: $, ₫)"); return; }
+  if (rate <= 0) { alert("환율을 입력해 주세요 (1" + sym + " 가 몇 원인지)"); return; }
+  let c = CCY.find(x => x.sym === sym && x.name === name);
+  if (!c) { c = { sym, name, rate }; CCY.push(c); }
+  else c.rate = rate;
+  saveCcy();
+  selectCcy(c);
+};
 
 document.querySelectorAll('input[name="etype"]').forEach(r => {
   r.onchange = () => {
-    const isIncome = r.value === "income" && r.checked;
-    document.getElementById("fDesc").placeholder = isIncome ? "예: 스윗워러님 찬조" : "예: 저녁 갈비";
+    if (!r.checked) return;
+    const isIncome = r.value === "income";
+    const isFee = r.value === "fee";
+    document.getElementById("fDesc").placeholder =
+      isFee ? "예: 1차 회비 (비워도 돼요)" : isIncome ? "예: 스윗워러님 찬조" : "예: 저녁 갈비";
     document.getElementById("pLabel").textContent = isIncome
       ? "혜택을 나눌 사람 (보통 전원 체크)"
       : "참여자 (헤더님 가신 뒤엔 헤더 체크 해제)";
     document.getElementById("submitBtn").textContent =
-      editingId ? "✏️ 수정 저장" : (isIncome ? "찬조 기록하기" : "지출 기록하기");
-    document.getElementById("catField").style.display = isIncome ? "none" : "block";
+      editingId ? "✏️ 수정 저장" : isFee ? "회비 기록하기" : isIncome ? "찬조 기록하기" : "지출 기록하기";
+    document.getElementById("catField").style.display = (isIncome || isFee) ? "none" : "block";
+    document.getElementById("participantField").style.display = isFee ? "none" : "block";
     document.getElementById("payerField").style.display = isIncome ? "none" : "block";
+    document.getElementById("payerLabel").textContent = isFee ? "누가 낸 회비인가요?" : "누가 결제했나요?";
+    // 회비 모드에서는 '회비(다현)' 결제자 옵션을 숨기고 멤버만 고르게
+    const fundLabel = [...document.querySelectorAll('#fPayers label')].find(l => l.querySelector("input").value === "회비");
+    if (fundLabel) {
+      fundLabel.style.display = isFee ? "none" : "";
+      const fundRadio = fundLabel.querySelector("input");
+      if (isFee && fundRadio.checked) {
+        const first = document.querySelector('#fPayers input[value="' + MEMBERS[0] + '"]');
+        if (first) first.checked = true;
+      }
+    }
   };
 });
 
@@ -606,11 +789,12 @@ document.getElementById("fPhoto").onchange = async e => {
 // 수정 모드
 function startEdit(e) {
   editingId = e.id;
-  document.querySelector('input[name="etype"][value="' + (e.type === "income" ? "income" : "expense") + '"]').click();
+  const etype = e.type === "income" ? "income" : e.type === "fee" ? "fee" : "expense";
+  document.querySelector('input[name="etype"][value="' + etype + '"]').click();
   document.getElementById("fDate").value = e.date;
   document.getElementById("fDesc").value = e.desc;
 
-  if (e.type !== "income") {
+  if (e.type === "expense") {
     let catVal;
     if (!e.category) catVal = "기타";
     else if (CATEGORIES.includes(e.category)) catVal = e.category;
@@ -619,19 +803,23 @@ function startEdit(e) {
     const custom = document.getElementById("fCatCustom");
     custom.style.display = catVal === "__custom" ? "block" : "none";
     custom.value = catVal === "__custom" ? e.category : "";
-
+  }
+  if (e.type === "expense" || e.type === "fee") {
     const payerRadio = document.querySelector('input[name="payer"][value="' + (e.payer || "회비") + '"]');
     (payerRadio || document.querySelector('input[name="payer"][value="회비"]')).checked = true;
   }
 
-  const ccyRadio = document.querySelector('input[name="ccy"][value="' + (e.usd ? "usd" : "krw") + '"]');
-  ccyRadio.checked = true;
-  ccyRadio.onchange();
-  if (e.usd) {
-    document.getElementById("fAmount").value = e.usd;
-    document.getElementById("fRate").value = e.rate || savedRate();
+  const fxAmt = e.fxAmt != null ? e.fxAmt : e.usd;
+  const fxSym = e.fxSym != null ? e.fxSym : (e.usd != null ? "$" : null);
+  if (fxAmt != null && fxSym != null) {
+    let c = CCY.find(x => x.sym === fxSym);
+    if (!c) { c = { sym: fxSym, name: e.fxName || fxSym, rate: e.rate || 0 }; CCY.push(c); saveCcy(); }
+    selectCcy(c);
+    document.getElementById("fAmount").value = fxAmt;
+    document.getElementById("fRate").value = e.rate || c.rate || "";
     updateRateHint();
   } else {
+    selectCcy(null);
     document.getElementById("fAmount").value = e.amount;
   }
 
@@ -670,34 +858,53 @@ document.getElementById("cancelEdit").onclick = () => {
 
 document.getElementById("expenseForm").onsubmit = async e => {
   e.preventDefault();
-  const participants = [...membersBox.querySelectorAll("input:checked")].map(c => c.value);
-  if (participants.length === 0) { alert("참여자를 한 명 이상 선택해 주세요"); return; }
-
   const etype = document.querySelector('input[name="etype"]:checked').value;
+  const isFee = etype === "fee";
+
+  let participants = [...membersBox.querySelectorAll("input:checked")].map(c => c.value);
+  if (!isFee && participants.length === 0) { alert("참여자를 한 명 이상 선택해 주세요"); return; }
+
+  const descVal = document.getElementById("fDesc").value.trim();
+  if (!isFee && !descVal) { alert("내용을 입력해 주세요"); return; }
+
   let category = null;
-  if (etype !== "income") {
+  if (etype === "expense") {
     const catVal = document.querySelector('input[name="cat"]:checked').value;
     category = catVal === "__custom" ? document.getElementById("fCatCustom").value.trim() : catVal;
     if (!category) { alert("항목 이름을 입력해 주세요"); return; }
   }
 
+  // 회비: 낸 사람을 payer로, 참여자는 계산에 안 쓰이므로 낸 사람 1명으로 기록
+  let payer = null;
+  if (isFee) {
+    payer = document.querySelector('input[name="payer"]:checked').value;
+    if (payer === "회비") { alert("회비를 낸 사람을 선택해 주세요"); return; }
+    participants = [payer];
+  } else if (etype !== "income") {
+    payer = document.querySelector('input[name="payer"]:checked').value;
+  }
+
   const raw = Number(document.getElementById("fAmount").value);
-  let amount = raw, usd = null, rate = null;
-  if (isUsdMode()) {
-    rate = Number(document.getElementById("fRate").value) || savedRate();
-    usd = raw;
+  let amount = raw, fxAmt = null, fxSym = null, fxName = null, rate = null;
+  if (isForeignMode()) {
+    rate = Number(document.getElementById("fRate").value) || selectedCcy.rate || 0;
+    if (rate <= 0) { alert("환율을 입력해 주세요"); return; }
+    fxAmt = raw;
+    fxSym = selectedCcy.sym;
+    fxName = selectedCcy.name;
     amount = Math.round(raw * rate);
-    localStorage.setItem("trip-usd-rate", rate);
+    selectedCcy.rate = rate;
+    saveCcy();
   }
 
   const item = {
     id: editingId || Date.now().toString(36),
     type: etype,
     category,
-    payer: etype === "income" ? null : document.querySelector('input[name="payer"]:checked').value,
+    payer,
     date: document.getElementById("fDate").value,
-    desc: document.getElementById("fDesc").value.trim(),
-    amount, usd, rate,
+    desc: document.getElementById("fDesc").value.trim() || (isFee ? "회비" : ""),
+    amount, fxAmt, fxSym, fxName, rate,
     participants,
     photo: pendingPhoto
   };
@@ -748,7 +955,7 @@ function buildFeeRows() {
 
 // ---------- 데이터 내보내기 / 가져오기 ----------
 document.getElementById("exportBtn").onclick = async () => {
-  const data = { app: "trip-2607", exportedAt: new Date().toISOString(), fees: FEES, extra: EXTRA_PAID, expenses };
+  const data = { app: "trip-2607", exportedAt: new Date().toISOString(), fees: FEES, extra: EXTRA_PAID, currencies: CCY, expenses };
   const json = JSON.stringify(data);
   const fileName = "캄보디아정산_" + new Date().toISOString().slice(0, 10) + ".json";
 
@@ -792,6 +999,9 @@ document.getElementById("importFile").onchange = async e => {
       saveFees();
       buildFeeRows();
     }
+    if (Array.isArray(data.currencies)) { CCY = data.currencies.filter(c => c && c.sym); saveCcy(); }
+    ensureCcyFromExpenses();
+    renderCcyChips();
     render();
     alert("가져오기 완료! (" + list.length + "건)");
   } catch (err) {
@@ -805,8 +1015,11 @@ document.getElementById("importFile").onchange = async e => {
   document.getElementById("fDate").value = new Date().toISOString().slice(0, 10);
   loadFees();
   buildFeeRows();
+  loadCcy();
   await openDB();
   expenses = await dbAll();
+  ensureCcyFromExpenses();
+  renderCcyChips();
 
   // 첫 실행이면 숙소비 자동 등록
   if (!localStorage.getItem("trip2607-seeded")) {
